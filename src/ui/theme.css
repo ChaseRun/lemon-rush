@@ -1007,3 +1007,36 @@
 .mk-rush-full .pz-toolbar {
   justify-content: flex-end;
 }
+
+/* ---------- sticky title bar with stock ---------- */
+.mk-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding-top: 12px;
+  padding-bottom: 14px;
+}
+.mk-stockbar {
+  min-width: 0;
+}
+.mk-stockbar-items {
+  display: flex;
+  gap: 10px;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.mk-stockbar-items span.limit {
+  color: var(--melon);
+}
+@media (max-width: 860px) {
+  .mk-wallet {
+    flex-wrap: wrap;
+  }
+  .mk-stockbar-items {
+    font-size: 16px;
+    gap: 6px;
+  }
+}

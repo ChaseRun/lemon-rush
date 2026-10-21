@@ -53,6 +53,7 @@ export function TopBar({ game }: { game: GameState }) {
             <small>Cash</small>
             <strong>{money(game.cash)}</strong>
           </div>
+          <StockBar inventory={game.inventory} />
           <div className="mk-pill">
             <small>Popularity</small>
             <strong>{Math.round(game.popularity)}</strong>
@@ -63,6 +64,23 @@ export function TopBar({ game }: { game: GameState }) {
         </div>
       </div>
     </header>
+  );
+}
+
+/** Stock in the title bar: one icon per item, the item that runs out first highlighted. */
+function StockBar({ inventory }: { inventory: GameState['inventory'] }) {
+  const canMake = engine.glassesMakeable(inventory);
+  return (
+    <div className="mk-pill mk-stockbar" title={`Enough for ${canMake} glass${canMake === 1 ? '' : 'es'}`}>
+      <small>Stock: makes {canMake}</small>
+      <div className="mk-stockbar-items">
+        {ITEMS.map((item) => (
+          <span key={item} className={inventory[item] === canMake ? 'limit' : ''} aria-label={`${ITEM_NAME[item]} ${inventory[item]}`}>
+            {ITEM_EMOJI[item]} {inventory[item]}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -103,13 +121,7 @@ export function Morning(props: {
         </div>
       </section>
 
-      <div className="mk-prep">
-        <section className="mk-card">
-          <h2 className="mk-section-title">Your stock</h2>
-          <Stock inventory={game.inventory} canMake={canMake} />
-        </section>
-        <PriceRuler game={game} today={today} news={news} canMake={canMake} onPrice={props.onPrice} />
-      </div>
+      <PriceRuler game={game} today={today} news={news} canMake={canMake} onPrice={props.onPrice} />
 
       <Store game={game} news={news} onBuy={props.onBuy} error={props.error} />
 
@@ -169,37 +181,6 @@ function ForecastCard({ f, lead }: { f: ForecastDay; lead: number }) {
       </div>
       {isToday && <p className="mk-note">Ice melts tonight, so buy ice for today only.</p>}
     </article>
-  );
-}
-
-function Stock({ inventory, canMake }: { inventory: GameState['inventory']; canMake: number }) {
-  const limiting = ITEMS.filter((i) => inventory[i] === canMake);
-  return (
-    <>
-      <div className="mk-stock">
-        {ITEMS.map((item) => (
-          <div key={item} className={limiting.includes(item) ? 'limit' : ''}>
-            <span className="emoji" aria-hidden>
-              {ITEM_EMOJI[item]}
-            </span>
-            <strong>{inventory[item]}</strong>
-            <small>{ITEM_NAME[item]}</small>
-          </div>
-        ))}
-      </div>
-      <p className="mk-cando">
-        {canMake === 0 ? (
-          <>
-            You can't make lemonade yet. You're out of{' '}
-            <b>{limiting.map((i) => ITEM_NAME[i].toLowerCase()).join(' and ')}</b>.
-          </>
-        ) : (
-          <>
-            You can make <b>{canMake} glasses</b>. {ITEM_NAME[limiting[0]]} runs out first.
-          </>
-        )}
-      </p>
-    </>
   );
 }
 

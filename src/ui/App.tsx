@@ -76,14 +76,13 @@ export function App() {
     setPhase('start');
   };
 
+  // Functional updates so rapid clicks each build on the latest state instead of a stale render.
   const buy = (item: Item, packIdx: number) => {
-    const r = engine.buy(game, item, packIdx);
-    if (r.ok) {
-      setGame(r.state);
-      setError(null);
-    } else {
-      setError(r.error);
-    }
+    setGame((prev) => {
+      const r = engine.buy(prev, item, packIdx);
+      setError(r.ok ? null : r.error);
+      return r.ok ? r.state : prev;
+    });
   };
 
   if (showRules) {
@@ -136,7 +135,7 @@ export function App() {
             game={game}
             error={error}
             onBuy={buy}
-            onPrice={(p) => setGame(engine.setPrice(game, p))}
+            onPrice={(p) => setGame((prev) => engine.setPrice(prev, p))}
             onStart={startDay}
           />
         </>
