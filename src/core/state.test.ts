@@ -62,10 +62,10 @@ describe('bankruptcy', () => {
   });
 
   it('no stock but can afford one small pack of everything → not bankrupt', () => {
-    // 3.00 + 1.50 + 1.00 + 1.00
-    expect(restockCost(gameWith({ todayNews: 'quiet', inventory: stock(0) }))).toBe(6.5);
-    expect(isBankrupt(gameWith({ todayNews: 'quiet', inventory: stock(0), cash: 6.5 }))).toBe(false);
-    expect(isBankrupt(gameWith({ todayNews: 'quiet', inventory: stock(0), cash: 6.49 }))).toBe(true);
+    // 3.00 + 1.50 + 1.50 + 1.00
+    expect(restockCost(gameWith({ todayNews: 'quiet', inventory: stock(0) }))).toBe(7);
+    expect(isBankrupt(gameWith({ todayNews: 'quiet', inventory: stock(0), cash: 7 }))).toBe(false);
+    expect(isBankrupt(gameWith({ todayNews: 'quiet', inventory: stock(0), cash: 6.99 }))).toBe(true);
   });
 
   it('has stock and $0 → not bankrupt', () => {
@@ -73,15 +73,15 @@ describe('bankruptcy', () => {
   });
 
   it('only the missing items need to be affordable', () => {
-    // Everything but ice: only a $1 ice pack is needed.
+    // Everything but ice: only a $1.50 ice pack is needed.
     const inventory = { lemons: 5, sugar: 5, ice: 0, cups: 5 };
-    expect(isBankrupt(gameWith({ todayNews: 'quiet', inventory, cash: 1 }))).toBe(false);
-    expect(isBankrupt(gameWith({ todayNews: 'quiet', inventory, cash: 0.99 }))).toBe(true);
+    expect(isBankrupt(gameWith({ todayNews: 'quiet', inventory, cash: 1.5 }))).toBe(false);
+    expect(isBankrupt(gameWith({ todayNews: 'quiet', inventory, cash: 1.49 }))).toBe(true);
   });
 
   it("uses today's news prices (Ice shortage doubles the cheapest ice)", () => {
     const inventory = { lemons: 5, sugar: 5, ice: 0, cups: 5 };
-    expect(isBankrupt(gameWith({ todayNews: 'iceShortage', inventory, cash: 1.5 }))).toBe(true);
-    expect(isBankrupt(gameWith({ todayNews: 'iceShortage', inventory, cash: 2 }))).toBe(false);
+    expect(isBankrupt(gameWith({ todayNews: 'iceShortage', inventory, cash: 2.99 }))).toBe(true);
+    expect(isBankrupt(gameWith({ todayNews: 'iceShortage', inventory, cash: 3 }))).toBe(false);
   });
 });

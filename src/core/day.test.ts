@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DayOutcome, GameState, ServedRecord } from '../contract';
 import { ITEMS } from '../contract';
-import { JUG_CAPACITY, SEASON_DAYS } from './config';
+import { DAILY_COST, DAY_LENGTH_MS, JUG_CAPACITY, PACKS, SEASON_DAYS } from './config';
 import { autoServe, endDay, planDay } from './day';
 import { buy } from './shop';
 import { setPrice } from './state';
@@ -44,7 +44,7 @@ describe('planDay', () => {
     expect(plan.price).toBe(1.5);
     expect(plan.inventory).toEqual(state.inventory);
     expect(plan.inventory).not.toBe(state.inventory); // a snapshot, not a shared reference
-    expect(plan.dayLengthMs).toBe(120_000);
+    expect(plan.dayLengthMs).toBe(DAY_LENGTH_MS);
     expect(plan).toEqual(planDay(state));
   });
 
@@ -156,16 +156,33 @@ describe('autoServe (jug rule)', () => {
 });
 
 describe('endDay', () => {
-  it('cash adds up: new cash = cash + revenue + tips; profit subtracts this morning’s spending', () => {
+  it('cash adds up: new cash = cash + revenue + tips − daily cost; profit subtracts shopping and the daily cost', () => {
+    expect(DAILY_COST.amount).toBe(2);
     const state = gameWith({ cash: 6.75, spentToday: 13.25, inventory: stock(25) });
     const { state: next, report } = close(state, outcome({ served: served(10, 'green', 2, 0.3) }));
     expect(report.revenue).toBe(20);
     expect(report.tips).toBe(3);
-    expect(next.cash).toBe(29.75);
-    expect(report.cashAfter).toBe(29.75);
-    expect(report.spent).toBe(13.25);
-    expect(report.profit).toBe(9.75);
+    expect(next.cash).toBe(27.75); // 6.75 + 20 + 3 − 2
+    expect(report.cashAfter).toBe(27.75);
+    expect(report.spent).toBe(15.25); // 13.25 shopping + 2 table rent
+    expect(report.profit).toBe(7.75);
     expect(next.spentToday).toBe(0);
+  });
+
+  it('charges the daily cost even when the stand sells nothing', () => {
+    const state = gameWith({ cash: 10, inventory: stock(5) });
+    const { state: next, report } = close(state, outcome());
+    expect(next.cash).toBe(8);
+    expect(report.spent).toBe(2);
+    expect(report.profit).toBe(-2);
+  });
+
+  it('the daily cost never takes cash below $0, and only what was charged is reported', () => {
+    const state = gameWith({ cash: 0.5, inventory: stock(5) });
+    const { state: next, report } = close(state, outcome());
+    expect(next.cash).toBe(0);
+    expect(report.spent).toBe(0.5);
+    expect(report.cashAfter).toBeCloseTo(state.cash + report.profit, 2);
   });
 
   it('melts all ice; everything else carries over', () => {
@@ -222,7 +239,7 @@ describe('endDay', () => {
       glassesSold: 6,
       walkouts: 2,
       noRoom: 1,
-      popularityBefore: 20,
+      popularityBefore: state.popularity,
     });
     expect(report.serviceRating).toBeCloseTo((3 * 1 + 2 * 0.7 + 1 * 0.4 + 1 * 0.3) / 9);
   });
@@ -238,7 +255,7 @@ describe('endDay', () => {
   });
 
   it('good service raises popularity, bad service lowers it', () => {
-    const state = gameWith({ inventory: stock(20), cash: 30 });
+    const state = gameWith({ inventory: stock(20), cash: 30, popularity: 20 });
     const good = close(state, outcome({ served: served(10, 'green') })).state.popularity;
     const bad = close(state, outcome({ served: served(2, 'red'), walkouts: 8 })).state.popularity;
     expect(good).toBeGreaterThan(20);
@@ -255,8 +272,9 @@ describe('endDay', () => {
 
   it('stays alive when the night’s takings cover a pack of ice', () => {
     const state = gameWith({ inventory: stock(5), cash: 0 });
-    // $2 covers a small ice pack even during an Ice shortage.
-    const { state: next } = close(state, outcome({ served: served(1, 'green', 2) }));
+    // One sale that covers the table rent plus a small ice pack even during an Ice shortage (×2).
+    const pay = DAILY_COST.amount + 2 * PACKS.ice[0].price;
+    const { state: next } = close(state, outcome({ served: served(1, 'green', pay) }));
     expect(next.status).toBe('playing');
   });
 

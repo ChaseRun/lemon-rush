@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { NewsId, Sky, Weather } from '../contract';
-import { CUSTOMER_TYPES, DAY_LENGTH_MS } from './config';
+import { CUSTOMER_TYPES, DAY_LENGTH_MS, DEMAND, SKY_TABLE } from './config';
 import type { DemandInput } from './demand';
-import { expectedFootTraffic, generateDemand, heatBonus, temperatureFactor } from './demand';
+import {
+  expectedFootTraffic,
+  expectedStoppers,
+  generateDemand,
+  maxPayRange,
+  popularityFactor,
+  popularityPayFactor,
+  stopChance,
+  temperatureFactor,
+  typicalMaxPay,
+} from './demand';
+import { heatBonus } from './demand';
 import { newsById } from './testing';
 
 function demand(overrides: Partial<Omit<DemandInput, 'news'>> & { news?: NewsId } = {}) {
@@ -33,14 +44,55 @@ describe('demand formulas', () => {
     expect(heatBonus(100)).toBeCloseTo(1.2);
   });
 
-  it('foot traffic = 40 × temp × sky × news × (1 + popularity/100)', () => {
+  it('foot traffic = base × temp × sky × news × (1 + popularity × perPoint)', () => {
     const quiet = newsById('quiet');
-    expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, quiet, 0)).toBeCloseTo(40);
-    // Design doc day-1 example: 85°F sunny, popularity 20 → about 54.
-    expect(expectedFootTraffic({ sky: 'sunny', tempF: 85 }, quiet, 20)).toBeCloseTo(54);
-    expect(expectedFootTraffic({ sky: 'rain', tempF: 80 }, quiet, 0)).toBeCloseTo(14);
-    expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, newsById('poolClosed'), 0)).toBeCloseTo(52);
-    expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, newsById('july4th'), 0)).toBeCloseTo(80);
+    const base = DEMAND.baseTraffic;
+    expect(base).toBe(36);
+    expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, quiet, 0)).toBeCloseTo(base);
+    // Design doc day-1 example: 85°F sunny at popularity 20 → 36 × 1.125 × 1.3 ≈ 53 walk by.
+    expect(expectedFootTraffic({ sky: 'sunny', tempF: 85 }, quiet, 20)).toBeCloseTo(52.65);
+    expect(expectedFootTraffic({ sky: 'rain', tempF: 80 }, quiet, 0)).toBeCloseTo(base * SKY_TABLE.rain.traffic);
+    expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, newsById('poolClosed'), 0)).toBeCloseTo(base * 1.3);
+    expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, newsById('july4th'), 0)).toBeCloseTo(base * 2);
+    // Popularity is the main growth lever: +1.5% per point, so a popular stand (80) sees 2.2× the people.
+    expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, quiet, 80)).toBeCloseTo(base * 2.2);
+  });
+
+  it('people pay more at a popular stand: ×1.0 at the starting popularity (20), ×1.24 at 50, ×1.64 at 100', () => {
+    expect(popularityPayFactor(0)).toBeCloseTo(0.84);
+    expect(popularityPayFactor(20)).toBeCloseTo(1);
+    expect(popularityPayFactor(50)).toBeCloseTo(1.24);
+    expect(popularityPayFactor(100)).toBeCloseTo(1.64);
+    expect(popularityFactor(100)).toBeCloseTo(2.5);
+    const quiet = newsById('quiet');
+    expect(typicalMaxPay('worker', 80, quiet, 20)).toBeCloseTo(3);
+    expect(typicalMaxPay('worker', 80, quiet, 100)).toBeCloseTo(3 * 1.64);
+    expect(typicalMaxPay('worker', 80, newsById('july4th'), 20)).toBeCloseTo(3 * 1.2);
+    expect(maxPayRange('jogger', 80, quiet, 20)).toEqual({ lo: expect.closeTo(2), hi: expect.closeTo(3) });
+  });
+
+  it('stopChance: everyone below the range, nobody above it, linear in between', () => {
+    const quiet = newsById('quiet');
+    const { lo, hi } = maxPayRange('grandma', 85, quiet, 30);
+    expect(stopChance('grandma', 85, quiet, 30, lo - 0.01)).toBe(1);
+    expect(stopChance('grandma', 85, quiet, 30, hi + 0.01)).toBe(0);
+    expect(stopChance('grandma', 85, quiet, 30, (lo + hi) / 2)).toBeCloseTo(0.5);
+  });
+
+  it('expectedStoppers matches what generateDemand actually rolls, on average', () => {
+    const weather: Weather = { sky: 'sunny', tempF: 85 };
+    for (const [popularity, price] of [
+      [0, 1.75],
+      [50, 3],
+      [90, 3.5],
+    ]) {
+      let stopped = 0;
+      const seeds = 300;
+      for (let seed = 1; seed <= seeds; seed++) stopped += demand({ seed, weather, popularity, price }).arrivals.length;
+      const expected = expectedStoppers(weather, newsById('quiet'), popularity, price);
+      expect(stopped / seeds).toBeGreaterThan(expected * 0.9 - 0.5);
+      expect(stopped / seeds).toBeLessThan(expected * 1.1 + 0.5);
+    }
   });
 });
 
@@ -83,11 +135,11 @@ describe('generateDemand', () => {
     expect(d.arrivals.some((a) => a.type === 'kid')).toBe(false);
   });
 
-  it('limits stay inside base × heat bonus × [0.8, 1.2]', () => {
+  it('limits stay inside base × heat bonus × popularity factor × [0.8, 1.2]', () => {
     const weather: Weather = { sky: 'sunny', tempF: 90 };
     const d = demand({ price: 0.5, weather });
     for (const a of d.arrivals) {
-      const base = CUSTOMER_TYPES[a.type].basePay * heatBonus(90);
+      const base = CUSTOMER_TYPES[a.type].basePay * heatBonus(90) * popularityPayFactor(20);
       expect(a.maxPay).toBeGreaterThanOrEqual(Math.floor(base * 0.8 * 100) / 100);
       expect(a.maxPay).toBeLessThanOrEqual(Math.ceil(base * 1.2 * 100) / 100);
     }
@@ -138,7 +190,9 @@ describe('generateDemand', () => {
     const noon = DAY_LENGTH_MS * (3 / 8);
     const atNoon = crew.arrivals.filter((a) => a.atMs === noon && a.type === 'worker');
     expect(atNoon.length).toBeGreaterThanOrEqual(8);
-    expect(crew.passersby).toBe(Math.round(quiet.passersby / 2) + 8);
+    const weather = { sky: 'sunny', tempF: 80 } as const;
+    expect(crew.passersby).toBe(Math.round(expectedFootTraffic(weather, newsById('streetCrew'), 20)) + 8);
+    expect(crew.passersby - 8).toBeCloseTo(quiet.passersby / 2, -0.5);
   });
 
   it('street crew workers still have to accept the price', () => {
@@ -152,16 +206,16 @@ describe('generateDemand', () => {
     expect(demand({ seed: 9, day: 12 })).toEqual(demand({ seed: 9, day: 12 }));
   });
 
-  it('matches the design-doc day 1 sanity check: ~54 walk by, kids priced out, ~31 stop', () => {
+  it('matches the design-doc day 1 sanity check: 53 walk by, kids priced out at $2, ~30 stop', () => {
     let stopped = 0;
     const seeds = 200;
     for (let seed = 1; seed <= seeds; seed++) {
-      const d = demand({ seed, day: 1, weather: { sky: 'sunny', tempF: 85 }, price: 2 });
-      expect(d.passersby).toBe(54);
+      const d = demand({ seed, day: 1, weather: { sky: 'sunny', tempF: 85 }, popularity: 20, price: 2 });
+      expect(d.passersby).toBe(53);
       expect(d.arrivals.some((a) => a.type === 'kid')).toBe(false);
       stopped += d.arrivals.length;
     }
-    expect(stopped / seeds).toBeGreaterThan(28);
+    expect(stopped / seeds).toBeGreaterThan(27);
     expect(stopped / seeds).toBeLessThan(34);
   });
 });

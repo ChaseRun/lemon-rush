@@ -6,7 +6,7 @@
 
 import type { Arrival, CustomerTypeId, NewsEvent, Weather } from '../contract';
 import { CUSTOMER_TYPES, DEMAND, SKY_TABLE } from './config';
-import { roundCents, toCents } from './money';
+import { clamp, roundCents, toCents } from './money';
 import type { Rng } from './rng';
 import { rngFor } from './rng';
 
@@ -31,6 +31,11 @@ export function popularityFactor(popularity: number): number {
   return 1 + popularity * DEMAND.popularityTrafficPerPoint;
 }
 
+/** People pay more at a popular stand (and less at one nobody has heard of). */
+export function popularityPayFactor(popularity: number): number {
+  return DEMAND.popularityPayAt0 + popularity * DEMAND.popularityPayPerPoint;
+}
+
 /** Expected passersby before rounding (street crew extras not included). */
 export function expectedFootTraffic(weather: Weather, news: NewsEvent, popularity: number): number {
   return (
@@ -42,10 +47,45 @@ export function expectedFootTraffic(weather: Weather, news: NewsEvent, popularit
   );
 }
 
-/** Most this person will pay: base × heat bonus × uniform(0.8, 1.2) × news (4th of July ×1.2), in cents. */
-export function rollMaxPay(rng: Rng, type: CustomerTypeId, weather: Weather, news: NewsEvent): number {
+/** The middle of a type's "most I'll pay" range: base × heat bonus × popularity factor × news (4th of July ×1.2). */
+export function typicalMaxPay(type: CustomerTypeId, tempF: number, news: NewsEvent, popularity: number): number {
+  return CUSTOMER_TYPES[type].basePay * heatBonus(tempF) * popularityPayFactor(popularity) * news.maxPayMultiplier;
+}
+
+/** The range a type's limit is drawn from: typical × (1 ± maxPayJitter). */
+export function maxPayRange(
+  type: CustomerTypeId,
+  tempF: number,
+  news: NewsEvent,
+  popularity: number,
+): { lo: number; hi: number } {
+  const mid = typicalMaxPay(type, tempF, news, popularity);
+  return { lo: mid * (1 - DEMAND.maxPayJitter), hi: mid * (1 + DEMAND.maxPayJitter) };
+}
+
+/** Chance that one passerby of this type stops at `price` (limits are uniform over maxPayRange). */
+export function stopChance(type: CustomerTypeId, tempF: number, news: NewsEvent, popularity: number, price: number): number {
+  const { lo, hi } = maxPayRange(type, tempF, news, popularity);
+  return clamp((hi - price) / (hi - lo), 0, 1);
+}
+
+/**
+ * Expected stoppers for a day: expected foot traffic × the share-weighted stop chance, plus any news extras.
+ * This is what the Morning screen can show, and what the balance simulator's players plan with.
+ */
+export function expectedStoppers(weather: Weather, news: NewsEvent, popularity: number, price: number): number {
+  const walkBy = expectedFootTraffic(weather, news, popularity);
+  let stoppers = 0;
+  for (const t of CUSTOMER_TYPE_IDS) stoppers += walkBy * CUSTOMER_TYPES[t].share * stopChance(t, weather.tempF, news, popularity, price);
+  const extra = news.extraArrivals;
+  if (extra) stoppers += extra.count * stopChance(extra.type, weather.tempF, news, popularity, price);
+  return stoppers;
+}
+
+/** Most this person will pay: typicalMaxPay × uniform(1 − jitter, 1 + jitter), in cents. */
+export function rollMaxPay(rng: Rng, type: CustomerTypeId, weather: Weather, news: NewsEvent, popularity = 0): number {
   const jitter = rng.float(1 - DEMAND.maxPayJitter, 1 + DEMAND.maxPayJitter);
-  return roundCents(CUSTOMER_TYPES[type].basePay * heatBonus(weather.tempF) * jitter * news.maxPayMultiplier);
+  return roundCents(typicalMaxPay(type, weather.tempF, news, popularity) * jitter);
 }
 
 export function willStop(price: number, maxPay: number): boolean {
@@ -87,7 +127,7 @@ export function generateDemand(input: DemandInput): Demand {
   const regulars: Stopper[] = [];
   for (let i = 0; i < regularCount; i++) {
     const type = rng.pickWeighted(CUSTOMER_TYPE_IDS, (t) => CUSTOMER_TYPES[t].share);
-    const maxPay = rollMaxPay(rng, type, weather, news);
+    const maxPay = rollMaxPay(rng, type, weather, news, popularity);
     if (willStop(price, maxPay)) regulars.push(makeStopper(type, maxPay));
     else tooExpensive[type]++;
   }
@@ -104,7 +144,7 @@ export function generateDemand(input: DemandInput): Demand {
     const atMs = Math.round(extra.atFractionOfDay * dayLengthMs);
     for (let i = 0; i < extra.count; i++) {
       extraCount++;
-      const maxPay = rollMaxPay(extraRng, extra.type, weather, news);
+      const maxPay = rollMaxPay(extraRng, extra.type, weather, news, popularity);
       if (willStop(price, maxPay)) timed.push({ ...makeStopper(extra.type, maxPay), atMs });
       else tooExpensive[extra.type]++;
     }

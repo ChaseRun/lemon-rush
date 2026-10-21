@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sim": "BALANCE=1 vitest run src/core/sim.report.test.ts"
   },
   "dependencies": {
     "react": "^19.3.1",

@@ -24,9 +24,14 @@ export { autoServe, endDay, planDay } from './day';
 export {
   CUSTOMER_TYPE_IDS,
   expectedFootTraffic,
+  expectedStoppers,
   generateDemand,
   heatBonus,
+  maxPayRange,
   popularityFactor,
+  popularityPayFactor,
+  stopChance,
+  typicalMaxPay,
   temperatureFactor,
   zeroByType,
 } from './demand';

@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DayOutcome, GameState } from '../contract';
 import { ITEMS } from '../contract';
-import { JUG_CAPACITY, SEASON_DAYS } from './config';
+import { DAILY_COST, JUG_CAPACITY, SEASON_DAYS } from './config';
 import { engine } from './index';
 
 type Strategy = (state: GameState) => GameState;
@@ -92,10 +92,17 @@ describe('a 30-day season', () => {
     expect(end.cash).toBe(cash);
   });
 
-  it('a sensible strategy usually turns a profit', () => {
-    const finals = Array.from({ length: 30 }, (_, i) => playSeason(i + 1, steady(30)));
+  it('a sensible strategy (stock about what a new stand sells) usually turns a profit', () => {
+    const finals = Array.from({ length: 30 }, (_, i) => playSeason(i + 1, steady(12)));
     const profitable = finals.filter((s) => s.status === 'finished' && s.cash > 20).length;
     expect(profitable).toBeGreaterThanOrEqual(27);
+  });
+
+  it('wild overstocking every day risks bankruptcy that sensible stocking avoids (ice melts, jugs get poured out)', () => {
+    const bankrupt = (target: number) =>
+      Array.from({ length: 30 }, (_, i) => playSeason(i + 1, steady(target))).filter((s) => s.status === 'bankrupt').length;
+    expect(bankrupt(12)).toBe(0);
+    expect(bankrupt(80)).toBeGreaterThan(0);
   });
 
   it('spending everything on lemons goes bankrupt on day 1 and ends the game', () => {
@@ -113,9 +120,11 @@ describe('a 30-day season', () => {
     expect(end.history[0].day).toBe(1);
   });
 
-  it('doing nothing keeps the starting $20 and finishes the season', () => {
+  it("doing nothing: Mom's table rent eats the $20 and the stand goes under within a week", () => {
     const end = playSeason(1, (s) => s);
-    expect(end.status).toBe('finished');
-    expect(end.cash).toBe(20);
+    expect(end.status).toBe('bankrupt');
+    expect(end.history.length).toBeLessThanOrEqual(7);
+    for (const r of end.history) expect(r.spent).toBe(DAILY_COST.amount);
+    expect(end.cash).toBe(20 - DAILY_COST.amount * end.history.length);
   });
 });

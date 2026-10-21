@@ -29,18 +29,18 @@ describe('serviceRating', () => {
 
 describe('updatePopularity', () => {
   it('a perfect day raises it, a terrible day lowers it, an average day barely moves it', () => {
-    expect(updatePopularity(20, 1)).toBeCloseTo(29.5); // 20 + 10 = 30, then 30 + (20 - 30) × 0.05
-    expect(updatePopularity(20, 0)).toBeCloseTo(10.5); // 20 - 10 = 10, then 10 + (20 - 10) × 0.05
+    expect(updatePopularity(20, 1)).toBeCloseTo(27.28, 1); // 20 + 7.5 = 27.5, then 3% drift back toward 20
+    expect(updatePopularity(20, 0)).toBeCloseTo(12.73, 1); // 20 - 7.5 = 12.5, then 3% drift back toward 20
     expect(updatePopularity(20, 0.5)).toBe(20);
   });
 
-  it('matches the design-doc example: rating ~0.67 takes 20 to ~23', () => {
-    expect(updatePopularity(20, 0.67)).toBeCloseTo(23.23, 2);
+  it('matches the design-doc example: a good first day (rating 0.9) takes 20 to ~26', () => {
+    expect(updatePopularity(20, 0.9)).toBeCloseTo(25.82, 2); // 20 + 0.4 × 15 = 26, then 3% of the way back to 20
   });
 
   it('drifts back toward 20 on an average day', () => {
-    expect(updatePopularity(60, 0.5)).toBe(58);
-    expect(updatePopularity(0, 0.5)).toBe(1);
+    expect(updatePopularity(60, 0.5)).toBe(58.8);
+    expect(updatePopularity(0, 0.5)).toBe(0.6);
   });
 
   it('stays between 0 and 100', () => {

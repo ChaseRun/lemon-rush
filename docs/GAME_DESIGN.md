@@ -4,9 +4,10 @@
 
 ## 1. Pitch, score, and losing
 - **The setup:** a kid's lemonade stand over **30 days of summer (July 1–30)**. You start with **$20**, no supplies, and popularity 20 out of 100.
+- **Mom's table rent:** every night Mom charges **$2** for borrowing the card table, whether you opened or not. It comes out of the night's cash and shows up in the report's "spent". (Balance numbers and the reasoning are in `docs/BALANCE.md`.)
 - **Score:** your cash at the end of day 30. Leftover supplies are worth nothing.
 - **Bankruptcy:** checked each night after the ice melts. You're bankrupt if you can't make a glass **and** can't afford the cheapest pack of each missing item. The game ends and shows the day you went under.
-- Cash never goes below $0.
+- Cash never goes below $0. If you can't cover the rent, Mom lets the rest go.
 
 ## 2. The daily loop
 1. **Morning:** check the forecast and headline, buy supplies, set your price.
@@ -20,7 +21,7 @@
 |---|---|---|---|---|
 | 🍋 Lemons | 10 for $3.00 | 25 for $6.25 | 50 for $10.00 | Never |
 | 🍬 Sugar | 10 for $1.50 | 25 for $3.00 | 50 for $5.00 | Never |
-| 🧊 Ice | 10 for $1.00 | 25 for $2.00 | 50 for $3.00 | **Melts every night** |
+| 🧊 Ice | 10 for $1.50 | 25 for $3.00 | 50 for $4.50 | **Melts every night** |
 | 🥤 Cups | 10 for $1.00 | 25 for $2.00 | 50 for $3.00 | Never |
 
 You can't buy what you can't afford. Price range: $0.50–$5.00.
@@ -48,7 +49,7 @@ You can't buy what you can't afford. Price range: $0.50–$5.00.
   When the sky is wrong, it's off by one step on the sunny-to-storm scale.
 
 ## 5. Demand
-- **Foot traffic** = 40 × temperature factor × sky factor × news factor × (1 + popularity / 100).
+- **Foot traffic** = 36 × temperature factor × sky factor × news factor × (1 + 1.5% × popularity). About 45–55 people walk by on a nice early day; a popular stand (80) sees 2.2× the base.
 - **Temperature factor** = 0.5 + (temperature − 60) / 40. That's ×0.5 at 60°F, ×1.0 at 80°F, ×1.5 at 100°F.
 - **Customer types:**
 
@@ -59,13 +60,16 @@ You can't buy what you can't afford. Price range: $0.50–$5.00.
   | 👵 Grandma | 20% | $2.00 | 25s | 30% |
   | 👷 Construction Worker | 20% | $3.00 | 15s | 15% |
 
-- **Each person's actual limit** = base × heat bonus × a random factor between 0.8 and 1.2. The heat bonus is 0.8 + 0.4 × (temperature − 60) / 40, so ×0.8 at 60°F up to ×1.2 at 100°F. On the 4th of July, limits are ×1.2.
+- **Each person's actual limit** = base × heat bonus × popularity bonus × a random factor between 0.8 and 1.2.
+  - The heat bonus is 0.8 + 0.4 × (temperature − 60) / 40, so ×0.8 at 60°F up to ×1.2 at 100°F.
+  - **People pay more at a popular stand:** the popularity bonus is 0.84 + 0.008 × popularity, so ×1.0 at the starting 20, ×1.24 at 50 and ×1.64 at 100.
+  - On the 4th of July, limits are ×1.2.
 - **A passerby stops if your price is at or below their limit.** Otherwise they're counted as "too expensive" for their type.
 - **Arrivals** are spread evenly across the day.
 
 ## 6. The Rush (reduced)
 - **Layout:** 3 customer spots on the left and a prep station on the right. The kid moves left and right between them.
-- **Length:** 120 seconds of real time, running from 9am to 5pm.
+- **Length:** 90 seconds of real time, running from 9am to 5pm. A 30-day summer is about an hour of play (see `docs/BALANCE.md`).
 - **Controls:** ← / → (or A / D) to move. Space to act.
 - **The jug:** lemonade comes from a **10-glass jug** that starts each day empty. Hold Space at the prep station for **2.0s** to fill it with up to 10 glasses (fewer if lemons or sugar run short). **Filling uses 1 lemon + 1 sugar per glass immediately.**
 - **Pouring a glass:** with lemonade in the jug, hold Space at the station for **0.3s** to pour a glass. It needs a free cup and ice. You can carry 1 glass. When the jug is empty, go back and refill it.
@@ -110,10 +114,10 @@ You can't buy what you can't afford. Price range: $0.50–$5.00.
 
   The rating is the average of these. If nobody stopped, it's 0.5.
 - **Popularity update (overnight):**
-  1. popularity += (rating − 0.5) × 20
-  2. Then drift toward 20: popularity += (20 − popularity) × 0.05
+  1. popularity += (rating − 0.5) × 15
+  2. Then drift toward 20: popularity += (20 − popularity) × 0.03
   3. Keep it between 0 and 100.
-- **Effect:** +1% foot traffic per point. Fast service today means more customers tomorrow.
+- **Effect:** +1.5% foot traffic and +0.8% willingness to pay per point. Good service today means more customers, paying more, tomorrow. This is what makes the summer get better: see `docs/BALANCE.md`.
 - **The main decision:** price against how fast you can serve. A low price brings more people than you can handle, which means walkouts and a falling popularity.
 
 ## 9. Report
@@ -136,7 +140,8 @@ You can't buy what you can't afford. Price range: $0.50–$5.00.
 - Score is cash at the end of day 30.
 
 ## 11. Day 1 example (sanity check)
-- **Morning:** ☀️ 85°F. Buy 25 of each medium pack for $13.25, leaving $6.75 in cash. Price **$2.00**.
-- **Passersby:** about 54. All 19 kids are priced out, and about 31 people stop.
-- **Rush:** a decent first try serves about 23, with about 5 walkouts and 3 no-room misses.
-- **Evening:** cash about $56. Rating about 67%, so popularity goes 20 → about 23.
+- **Morning:** ☀️ 85°F, popularity 20. Buy a medium pack of each (25 glasses) for $14.25, leaving $5.75. Price **$2.25**.
+- **Passersby:** 53. All the kids are priced out, and about 25 people stop: more than one kid can serve in 90 seconds.
+- **Rush:** a decent first try serves about 14, with about 6 walkouts or no-room misses.
+- **Evening:** revenue about $31.50 plus about $2.50 in tips, minus $2 rent: cash about $37.75. Rating about 67%, so popularity goes 20 → about 22.
+- **The price is the lever:** at $2.00 about 30 stop (more walkouts, lower rating); at $2.75 about 14 stop, which one kid can actually serve.

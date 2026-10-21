@@ -1,7 +1,7 @@
 // One day: planDay → (autoServe | Rush) → endDay.
 
 import type { Bar, DayOutcome, DayPlan, DayReport, GameState, GameStatus, ServedRecord } from '../contract';
-import { DAY_LENGTH_MS, JUG_CAPACITY, TIP_MULTIPLIER_BY_BAR } from './config';
+import { DAILY_COST, DAY_LENGTH_MS, JUG_CAPACITY, TIP_MULTIPLIER_BY_BAR } from './config';
 import { generateDemand } from './demand';
 import { subtractInventory } from './inventory';
 import { roundCents, sumCents } from './money';
@@ -90,6 +90,11 @@ export function autoServe(plan: DayPlan): DayOutcome {
   };
 }
 
+/** The fixed nightly cost (Mom's table rent). Cash never goes below $0, so endDay charges at most what you have. */
+function dailyCostCharged(): number {
+  return roundCents(Math.max(0, DAILY_COST.amount));
+}
+
 function countByBar(served: readonly ServedRecord[]): Record<Bar, number> {
   const counts: Record<Bar, number> = { green: 0, yellow: 0, red: 0 };
   for (const s of served) counts[s.bar]++;
@@ -98,9 +103,10 @@ function countByBar(served: readonly ServedRecord[]): Record<Bar, number> {
 
 /**
  * Closes the day:
- *   1. cash += revenue + tips; stock -= used (lemons + sugar for every jug filled, cups + ice
- *      per glass served; lemonade left in the jug is already counted in used and is poured out);
- *      report.spent = spentToday, then reset it
+ *   1. cash += revenue + tips, minus the daily cost (DAILY_COST, never taking cash below $0);
+ *      stock -= used (lemons + sugar for every jug filled, cups + ice per glass served; lemonade
+ *      left in the jug is already counted in used and is poured out);
+ *      report.spent = spentToday (this morning's shopping) + the daily cost charged, then reset it
  *   2. melt all ice
  *   3. service rating → 4. popularity
  *   5. history + report
@@ -114,8 +120,10 @@ export function endDay(state: GameState, plan: DayPlan, outcome: DayOutcome): { 
   // 1. Money and stock. Stock never goes negative even if a simulator over-reports usage.
   const revenue = sumCents(outcome.served.map((s) => s.paid));
   const tips = sumCents(outcome.served.map((s) => s.tip));
-  const cash = roundCents(state.cash + revenue + tips);
-  const spent = state.spentToday;
+  const takings = roundCents(state.cash + revenue + tips);
+  const dailyCost = Math.min(dailyCostCharged(), takings);
+  const cash = roundCents(takings - dailyCost);
+  const spent = roundCents(state.spentToday + dailyCost);
   const afterSales = subtractInventory(state.inventory, outcome.used);
 
   // 2. All ice melts overnight.

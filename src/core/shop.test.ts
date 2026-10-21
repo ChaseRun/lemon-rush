@@ -13,7 +13,7 @@ describe('shopListing', () => {
       { size: 50, price: 10 },
     ]);
     expect(listing.sugar.map((p) => p.price)).toEqual([1.5, 3, 5]);
-    expect(listing.ice.map((p) => p.price)).toEqual([1, 2, 3]);
+    expect(listing.ice.map((p) => p.price)).toEqual([1.5, 3, 4.5]);
     expect(listing.cups.map((p) => p.price)).toEqual([1, 2, 3]);
   });
 
@@ -33,7 +33,7 @@ describe('shopListing', () => {
 
   it('Ice shortage doubles ice only', () => {
     const listing = shopListing(gameWith({ todayNews: 'iceShortage' }));
-    expect(listing.ice.map((p) => p.price)).toEqual([2, 4, 6]);
+    expect(listing.ice.map((p) => p.price)).toEqual([3, 6, 9]);
     expect(listing.lemons.map((p) => p.price)).toEqual([3, 6.25, 10]);
   });
 
@@ -56,7 +56,7 @@ describe('buy', () => {
 
   it('charges the news price', () => {
     const result = buy(gameWith({ todayNews: 'iceShortage', cash: 20 }), 'ice', 2);
-    expect(result.ok && result.state.cash).toBe(14);
+    expect(result.ok && result.state.cash).toBe(11); // 50 ice: $4.50 × 2
   });
 
   it('rejects when cash is short, and allows spending the exact last cent', () => {

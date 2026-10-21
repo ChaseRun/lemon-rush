@@ -12,11 +12,17 @@ export const START_CASH = 20;
 export const START_POPULARITY = 20;
 export const START_PRICE = 2;
 
+/**
+ * A fixed cost charged every night, open or not ("Mom charges for borrowing the card table").
+ * endDay takes it out of cash (never below $0) and counts it in report.spent.
+ */
+export const DAILY_COST = { amount: 2, label: "Mom's table rent" };
+
 export const PRICE_MIN = 0.5;
 export const PRICE_MAX = 5;
 
 /** Real-time length of one day (9am–5pm) in the Rush. */
-export const DAY_LENGTH_MS = 120_000;
+export const DAY_LENGTH_MS = 90_000;
 
 // ---------- Shop ----------
 
@@ -33,9 +39,9 @@ export const PACKS: Record<Item, { size: number; price: number }[]> = {
     { size: 50, price: 5.0 },
   ],
   ice: [
-    { size: 10, price: 1.0 },
-    { size: 25, price: 2.0 },
-    { size: 50, price: 3.0 },
+    { size: 10, price: 1.5 },
+    { size: 25, price: 3.0 },
+    { size: 50, price: 4.5 },
   ],
   cups: [
     { size: 10, price: 1.0 },
@@ -83,7 +89,7 @@ export const FORECAST_ACCURACY: { skyCorrect: number; tempErrorF: number; confid
 
 export const DEMAND = {
   /** Passersby on an 80°F sunny quiet day at popularity 0. */
-  baseTraffic: 40,
+  baseTraffic: 36,
   /** tempFactor = tempFactorAt60 + (tempF - 60) * tempFactorPerDegree  → 0.5 at 60°F, 1.5 at 100°F */
   tempFactorAt60: 0.5,
   tempFactorPerDegree: 1 / 40,
@@ -93,7 +99,10 @@ export const DEMAND = {
   /** maxPay is multiplied by uniform(1 - jitter, 1 + jitter). */
   maxPayJitter: 0.2,
   /** traffic multiplier = 1 + popularity * popularityTrafficPerPoint */
-  popularityTrafficPerPoint: 0.01,
+  popularityTrafficPerPoint: 0.015,
+  /** People pay more at a popular stand: maxPay ×= popularityPayAt0 + popularity × popularityPayPerPoint. */
+  popularityPayAt0: 0.84,
+  popularityPayPerPoint: 0.008,
 };
 
 export const CUSTOMER_TYPES: Record<
@@ -170,8 +179,8 @@ export const SERVICE_WEIGHTS = {
 
 /** popularity += (rating - 0.5) * changeScale; popularity += (anchor - popularity) * drift; clamp. */
 export const POPULARITY = {
-  changeScale: 20,
-  drift: 0.05,
+  changeScale: 15,
+  drift: 0.03,
   anchor: 20,
   min: 0,
   max: 100,
