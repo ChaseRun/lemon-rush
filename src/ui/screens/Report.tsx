@@ -14,6 +14,7 @@ export function Report({
   /** Buttons shown under the report (e.g. "Next morning", "Calendar"). */
   actions?: React.ReactNode;
 }) {
+  const soldOut = r.soldOutAtMs !== null;
   const tooExpensive = (Object.keys(r.tooExpensive) as CustomerTypeId[]).filter((t) => r.tooExpensive[t] > 0);
   const missed: [string, string, number][] = [
     ['😠', 'Walked out (waited too long)', r.walkouts],
@@ -25,10 +26,22 @@ export function Report({
     <main className="mk-page">
       <div className="mk-headline">
         <span className="emoji" aria-hidden>
-          🌙
+          {soldOut ? '🚫' : '🌙'}
         </span>
         <div>
-          <h2>Day {r.day} is over</h2>
+          <h2>
+            {soldOut
+              ? `Day ${r.day}: sold out at ${clock(r.soldOutAtMs!, dayLengthMs)}`
+              : `Day ${r.day}: closed at ${clock(dayLengthMs, dayLengthMs)}`}
+          </h2>
+          {soldOut && (
+            <p>
+              <b>
+                You ran out of supplies, so the stand closed early
+                {r.soldOutMisses > 0 ? ` and ${r.soldOutMisses} customer${r.soldOutMisses === 1 ? '' : 's'} missed out` : ''}.
+              </b>
+            </p>
+          )}
           <p>
             Walt said {SKY_EMOJI[r.forecast.sky]} {Math.round(r.forecast.tempF)}° ("{r.forecast.confidence}"). It was{' '}
             {SKY_EMOJI[r.weather.sky]} {SKY_NAME[r.weather.sky].toLowerCase()}, {Math.round(r.weather.tempF)}°. {r.news.headline}
