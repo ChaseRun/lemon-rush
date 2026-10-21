@@ -44,6 +44,16 @@ export const HOP_MS = 180;
 /** World x (0..900, the rules' units) to art pixels. */
 export const toArtX = (worldX: number) => Math.round(worldX / RUSH_VIEW.pixelScale);
 
+/**
+ * Which coin animation frame to draw for a pop-up that is `ageMs` old, with a per-coin `offsetMs`
+ * (negative for coins that lag behind). Always a valid index into a list of `frameCount` frames:
+ * a negative age used to produce index -1, which crashed the renderer right after a serve.
+ */
+export function coinFrameIndex(ageMs: number, offsetMs: number, frameCount: number): number {
+  if (frameCount <= 0) return 0;
+  return Math.floor(Math.max(0, ageMs + offsetMs) / 90) % frameCount;
+}
+
 export function createFx(): Fx {
   return { animMs: 0, facing: -1, running: false, hopMs: 0, overMs: 0, popups: [], leavers: [] };
 }

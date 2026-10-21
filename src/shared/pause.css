@@ -1,0 +1,69 @@
+.pz-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(27, 43, 72, 0.55);
+  z-index: 5;
+}
+.pz-card {
+  background: #fff;
+  color: #1b2b48;
+  border: 4px solid #1b2b48;
+  box-shadow: 6px 6px 0 #ffd43b;
+  padding: 18px 22px;
+  display: grid;
+  gap: 10px;
+  max-width: 360px;
+  text-align: center;
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+  letter-spacing: normal;
+}
+.pz-card h2 {
+  margin: 0 0 4px;
+  font-family: 'Press Start 2P', 'Baloo 2', ui-monospace, monospace;
+  font-size: 18px;
+}
+.pz-btn {
+  appearance: none;
+  border: 3px solid #1b2b48;
+  background: #fff;
+  color: #1b2b48;
+  padding: 10px 14px;
+  font: 700 16px 'Atkinson Hyperlegible', system-ui, sans-serif;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 #1b2b48;
+}
+.pz-btn small {
+  font-weight: 400;
+  opacity: 0.7;
+}
+.pz-primary {
+  background: #ffd43b;
+}
+.pz-btn:focus-visible {
+  outline: 3px solid #3f9fe0;
+  outline-offset: 3px;
+}
+.pz-note {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #52627e;
+}
+.pz-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+.pz-pause-btn {
+  appearance: none;
+  border: 2px solid #1b2b48;
+  background: #fff;
+  color: #1b2b48;
+  font: 700 13px 'Atkinson Hyperlegible', system-ui, sans-serif;
+  padding: 4px 10px;
+  cursor: pointer;
+}

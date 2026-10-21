@@ -19,7 +19,7 @@ import {
   stockLeft,
   taskProgress,
 } from '../rushRules';
-import { type Fx, LEAVE_MS, toArtX } from './fx';
+import { type Fx, LEAVE_MS, toArtX, coinFrameIndex } from './fx';
 import {
   ANGER,
   ARROW,
@@ -564,7 +564,7 @@ function drawPopups(g: Ctx, fx: Fx) {
         const arc = Math.min(1, k * 1.6);
         const cx = p.x + Math.round(j * 14 * arc) - 3;
         const cy = p.y + 4 - Math.round(22 * Math.sin(Math.PI * arc * 0.75)) - (j === 0 ? 4 : 0);
-        blit(g, COIN_FRAMES[Math.floor((p.ageMs + j * 60) / 90) % 2], cx, cy);
+        blit(g, COIN_FRAMES[coinFrameIndex(p.ageMs, j * 60, COIN_FRAMES.length)], cx, cy);
       }
     }
     label(g, p.text, p.x, y, p.coins ? 16 : 8, p.color);

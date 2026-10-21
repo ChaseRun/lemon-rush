@@ -262,6 +262,18 @@ export function step(state: RushState, dtMs: number, input: RushInput): RushStat
   return s;
 }
 
+/**
+ * The player ended the day from the pause menu: the stand closes right now, exactly as it would at 5pm.
+ * Everyone waiting or not yet arrived leaves (counted as leftAtClose, not held against the player),
+ * a serve in progress is abandoned, and lemonade in the jug or in hand is poured out.
+ */
+export function endDayEarly(state: RushState): RushState {
+  if (isOver(state)) return state;
+  const s = draft(state);
+  close(s, s.clockMs);
+  return s;
+}
+
 export function toOutcome(s: RushState): DayOutcome {
   return {
     served: s.served.map((r) => ({ ...r })),
