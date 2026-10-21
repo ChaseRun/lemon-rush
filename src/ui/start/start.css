@@ -1,0 +1,262 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Atkinson+Hyperlegible:wght@400;700&display=swap');
+
+/* Title screen. Every class starts with "st-" so nothing leaks into the rest of the app.
+   --st-px is the size of one art pixel. It only ever takes whole-pixel values, so the pixel art
+   scales by integer factors and stays crisp. */
+
+.st {
+  --st-px: 2px;
+  --st-sky-px: calc(var(--st-px) * 2);
+  --st-title: 40px;
+
+  --st-sky: #8fd3ff;
+  --st-sky-2: #76c5f8;
+  --st-sky-3: #5cb5ef;
+  --st-sky-deep: #3f9fe0;
+  --st-lemon: #ffd43b;
+  --st-lemon-hi: #ffe680;
+  --st-lemon-deep: #f2b705;
+  --st-melon: #e8445f;
+  --st-ink: #1b2b48;
+  --st-paper: #ffffff;
+  --st-cloud: #dcefff;
+
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow: hidden;
+  color: var(--st-ink);
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  /* A banded, retro sky: deep blue at the top stepping down to summer blue. */
+  background: linear-gradient(
+    to bottom,
+    var(--st-sky-deep) 0 calc(var(--st-px) * 6),
+    var(--st-sky-3) 0 calc(var(--st-px) * 14),
+    var(--st-sky-2) 0 calc(var(--st-px) * 26),
+    var(--st-sky) 0
+  );
+}
+.st *,
+.st *::before,
+.st *::after {
+  box-sizing: border-box;
+}
+/* Full-bleed only while the title screen is showing. */
+body:has(> #root > .st) {
+  margin: 0;
+}
+
+@media (min-width: 560px) and (min-height: 620px) {
+  .st {
+    --st-px: 3px;
+    --st-title: 56px;
+  }
+}
+@media (min-width: 900px) and (min-height: 780px) {
+  .st {
+    --st-px: 4px;
+    --st-title: 72px;
+  }
+}
+@media (min-width: 1400px) and (min-height: 1000px) {
+  .st {
+    --st-px: 5px;
+    --st-title: 88px;
+  }
+}
+
+/* ---------- pixel sprites ---------- */
+.st-sprite,
+.st-scene {
+  display: block;
+  flex: none;
+  shape-rendering: crispEdges;
+}
+.st-sprite {
+  position: absolute;
+  width: calc(var(--st-w) * var(--st-sky-px));
+  height: calc(var(--st-h) * var(--st-sky-px));
+}
+.st-sun {
+  top: calc(var(--st-px) * 8);
+  right: max(8px, 7vw);
+}
+.st-cloud-1 {
+  top: calc(var(--st-px) * 30);
+  left: max(-12px, 5vw);
+}
+.st-cloud-2 {
+  top: calc(var(--st-px) * 64);
+  right: 12vw;
+}
+.st-cloud-3 {
+  top: calc(var(--st-px) * 12);
+  left: 30vw;
+}
+@media (max-width: 559px) {
+  .st-cloud-3 {
+    display: none;
+  }
+}
+
+/* ---------- title, subtitle, buttons ---------- */
+.st-hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1 0 auto; /* fill the sky above the street and centre the title in it */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: clamp(24px, 6vh, 64px) 16px 24px;
+  text-align: center;
+}
+.st-title {
+  /* One font pixel of Press Start 2P is 1/8em, so the outline sits on the font's own pixel grid. */
+  --st-u: 0.125em;
+  --st-u2: calc(var(--st-u) * 2);
+  --st-n: calc(var(--st-u) * -1);
+  margin: 0;
+  font-family: 'Press Start 2P', ui-monospace, monospace;
+  font-size: var(--st-title);
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  text-shadow:
+    var(--st-n) 0 0 var(--st-ink),
+    var(--st-u) 0 0 var(--st-ink),
+    0 var(--st-n) 0 var(--st-ink),
+    0 var(--st-u) 0 var(--st-ink),
+    var(--st-n) var(--st-n) 0 var(--st-ink),
+    var(--st-u) var(--st-n) 0 var(--st-ink),
+    var(--st-n) var(--st-u) 0 var(--st-ink),
+    var(--st-u) var(--st-u) 0 var(--st-ink),
+    var(--st-n) var(--st-u2) 0 var(--st-ink),
+    0 var(--st-u2) 0 var(--st-ink),
+    var(--st-u) var(--st-u2) 0 var(--st-ink);
+}
+.st-title-line {
+  display: block;
+}
+.st-title-lemon {
+  color: var(--st-lemon);
+}
+.st-title-rush {
+  color: var(--st-melon);
+}
+.st-sub {
+  max-width: 34ch;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.st-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px 20px;
+  margin-top: 4px;
+}
+.st-btn {
+  appearance: none;
+  min-width: 240px;
+  margin: 0;
+  padding: 16px 20px;
+  border: 4px solid var(--st-ink);
+  border-radius: 0;
+  font-family: 'Press Start 2P', ui-monospace, monospace;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--st-ink);
+  cursor: pointer;
+  /* Inset bevel + hard offset shadow = chunky pixel button. */
+  box-shadow:
+    inset -4px -4px 0 var(--st-bevel),
+    4px 4px 0 var(--st-ink);
+}
+.st-btn-primary {
+  --st-bevel: var(--st-lemon-deep);
+  background: var(--st-lemon);
+}
+.st-btn-primary:hover {
+  background: var(--st-lemon-hi);
+}
+.st-btn-secondary {
+  --st-bevel: var(--st-cloud);
+  background: var(--st-paper);
+}
+.st-btn-secondary:hover {
+  background: #f4faff;
+}
+.st-btn:active {
+  transform: translate(4px, 4px);
+  box-shadow: inset -4px -4px 0 var(--st-bevel);
+}
+.st-btn:focus-visible {
+  outline: 4px solid var(--st-ink);
+  outline-offset: 6px;
+}
+.st-hint {
+  margin: 0;
+  font-size: 14px;
+}
+.st-hint kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  border: 2px solid var(--st-ink);
+  background: var(--st-paper);
+  box-shadow: 2px 2px 0 var(--st-ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* ---------- the street scene ---------- */
+.st-street {
+  display: flex;
+  justify-content: center; /* the scene is wider than most screens: crop it evenly on both sides */
+  overflow: hidden;
+  line-height: 0;
+}
+.st-scene {
+  width: calc(var(--st-w) * var(--st-px));
+  height: calc(var(--st-h) * var(--st-px));
+}
+
+/* The one animation: the kid waves (two frames). */
+.st-kid-b {
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .st-kid-a {
+    animation: st-wave-a 0.9s steps(1, end) infinite;
+  }
+  .st-kid-b {
+    animation: st-wave-b 0.9s steps(1, end) infinite;
+  }
+}
+@keyframes st-wave-a {
+  0% {
+    visibility: visible;
+  }
+  50% {
+    visibility: hidden;
+  }
+}
+@keyframes st-wave-b {
+  0% {
+    visibility: hidden;
+  }
+  50% {
+    visibility: visible;
+  }
+}
