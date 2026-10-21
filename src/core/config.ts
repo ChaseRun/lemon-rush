@@ -95,6 +95,9 @@ export const CUSTOMER_TYPES: Record<
   worker: { label: 'Construction Worker', emoji: '👷', share: 0.2, basePay: 3.0, patienceMs: 15_000, tipRate: 0.15 },
 };
 
+/** Tip = price × tipRate × this, by patience bar at serve time. Auto-serve always serves on green. */
+export const TIP_MULTIPLIER_BY_BAR = { green: 1, yellow: 0.5, red: 0 };
+
 // ---------- News ----------
 
 const NO_EFFECT = { trafficMultiplier: 1, tempBonusF: 0, maxPayMultiplier: 1, priceMultipliers: {} };
