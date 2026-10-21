@@ -6,6 +6,7 @@ import type { CustomerTypeId, DayOutcome, DayPlan, DayReport, GameState, Item, S
 import { ITEMS } from '../contract';
 import { engine } from '../engine';
 import { RushGame } from '../rush';
+import { About } from './About';
 
 type Phase = 'morning' | 'rush' | 'report';
 
@@ -49,6 +50,7 @@ export function App() {
   const [plan, setPlan] = useState<DayPlan | null>(null);
   const [report, setReport] = useState<DayReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showAbout, setShowAbout] = useState(false);
   const dayFinished = useRef(false);
 
   const startDay = (mode: 'rush' | 'auto') => {
@@ -101,7 +103,14 @@ export function App() {
 
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 960, margin: '0 auto', padding: 16 }}>
-      <h1>🍋 Lemon Rush</h1>
+      <h1>
+        🍋 Lemon Rush{' '}
+        {phase !== 'rush' && !showAbout && <button onClick={() => setShowAbout(true)}>📖 How it works</button>}
+      </h1>
+      {showAbout && phase !== 'rush' ? (
+        <About onBack={() => setShowAbout(false)} />
+      ) : (
+        <>
       <StatusBar game={game} />
 
       {phase === 'morning' && game.status === 'playing' && (
@@ -121,6 +130,8 @@ export function App() {
       )}
 
       {phase === 'morning' && game.status !== 'playing' && <GameOver game={game} onRestart={restart} />}
+        </>
+      )}
     </div>
   );
 }
