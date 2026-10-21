@@ -23,7 +23,7 @@ npm run build      # typecheck + production build
    - Set your price. **Ice melts every night**, and everything else carries over.
 2. **The day.** Press **Start Rush** to play, or **Auto-serve** to skip ahead assuming perfect service.
    - **Move** with ←/→ (or A/D).
-   - **Fill the jug and pour:** hold Space at the 🍋 station to fill the 10-glass jug (2s), then keep holding to pour a glass (0.3s). Refill when it's empty.
+   - **Fill the jug and pour:** hold Space at the 🍋 station to fill the 10-glass jug (2s). Filling uses the lemons and sugar right away. Keep holding to pour a glass (0.3s), which takes an ice and a cup. Refill when it's empty. Lemonade left in the jug at closing is poured out.
    - **Serve:** run to a customer and press Space.
    - Customers lose patience while they wait. A fast serve earns tips, and if patience runs out they walk out.
 3. **Evening report.**

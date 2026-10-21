@@ -83,7 +83,9 @@ export function Rules({ onBack, backLabel }: { onBack: () => void; backLabel: st
             </div>
           </div>
           <p className="mk-note" style={{ marginTop: 10 }}>
-            Ice melts every night. Lemons, sugar and cups keep, so bigger packs are safe once you can afford them.
+            Lemons and sugar go into a 10-glass jug when you fill it; ice and a cup go into each glass you serve. Ice
+            melts every night and leftover lemonade is poured out. Lemons, sugar and cups in your stock keep, so bigger
+            packs are safe once you can afford them.
           </p>
         </section>
 
@@ -211,14 +213,21 @@ export function Rules({ onBack, backLabel }: { onBack: () => void; backLabel: st
                   <b>← / →</b> (or A / D) to run along the counter.
                 </li>
                 <li>
-                  <b>Hold Space</b> at the 🍋 station to fill the jug ({RUSH.jugCapacity} glasses, {secs(RUSH.fillJugMs)}), then
-                  keep holding to pour a glass ({secs(RUSH.pourMs)}).
+                  <b>Hold Space</b> at the 🍋 station to fill the jug ({secs(RUSH.fillJugMs)}). A jug holds {RUSH.jugCapacity}{' '}
+                  glasses and uses 1 lemon + 1 sugar per glass <b>as soon as you fill it</b>.
+                </li>
+                <li>
+                  Keep holding to pour a glass ({secs(RUSH.pourMs)}). Each glass takes 1 ice + 1 cup, used when the customer
+                  gets it.
                 </li>
                 <li>
                   <b>Press Space</b> at a customer to hand it over ({secs(RUSH.serveMs)}).
                 </li>
                 <li>You carry one glass at a time. When the jug is empty, go back and refill it.</li>
-                <li>Supplies are only used when a customer gets their glass, so leftover lemonade costs nothing.</li>
+                <li>
+                  <b>Lemonade left in the jug at the end of the day is poured out</b>, and its lemons and sugar are gone.
+                  Think twice before filling a fresh jug late in the afternoon.
+                </li>
               </ul>
             </div>
             <div className="mk-card">

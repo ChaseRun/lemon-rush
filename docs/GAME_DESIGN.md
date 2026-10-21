@@ -14,7 +14,7 @@
 3. **Report:** see what happened, then go to the next day.
 
 ## 3. Supplies
-**One glass = 1 lemon + 1 sugar + 1 ice + 1 cup.** Glasses you can make = the smallest of your four counts.
+**One glass = 1 lemon + 1 sugar + 1 ice + 1 cup.** Glasses you can make = the smallest of your four counts. Lemons and sugar are used when you fill the 10-glass jug; ice and a cup are used for each glass you serve.
 
 | Item | Small pack | Medium pack | Large pack | Goes bad? |
 |---|---|---|---|---|
@@ -67,11 +67,12 @@ You can't buy what you can't afford. Price range: $0.50–$5.00.
 - **Layout:** 3 customer spots on the left and a prep station on the right. The kid moves left and right between them.
 - **Length:** 120 seconds of real time, running from 9am to 5pm.
 - **Controls:** ← / → (or A / D) to move. Space to act.
-- **The jug:** lemonade comes from a **10-glass jug** that starts each day empty. Hold Space at the prep station for **2.0s** to fill it (up to 10 glasses, or fewer if your supplies run short). Filling *reserves* supplies; it doesn't use them.
-- **Pouring a glass:** with lemonade in the jug, hold Space at the station for **0.3s** to pour a glass. You can carry 1 glass. When the jug is empty, go back and refill it.
+- **The jug:** lemonade comes from a **10-glass jug** that starts each day empty. Hold Space at the prep station for **2.0s** to fill it with up to 10 glasses (fewer if lemons or sugar run short). **Filling uses 1 lemon + 1 sugar per glass immediately.**
+- **Pouring a glass:** with lemonade in the jug, hold Space at the station for **0.3s** to pour a glass. It needs a free cup and ice. You can carry 1 glass. When the jug is empty, go back and refill it.
+- **End of day:** lemonade still in the jug (or in your hand) is **poured out**. Its lemons and sugar are lost, and the report shows how many glasses' worth was wasted.
 - **Serving:** at a waiting customer while holding a glass, press Space. Serving takes **0.8s** and you can't do anything else during it.
 - **When a serve finishes:**
-  - 1 of each item is taken from stock.
+  - 1 ice and 1 cup are taken from stock (the lemon and sugar were used when the jug was filled).
   - The customer pays your price plus a tip, which is added to your cash.
   - A "+$X.XX" pops up.
   - The customer leaves.
@@ -130,7 +131,7 @@ You can't buy what you can't afford. Price range: $0.50–$5.00.
 ## 10. How we read the brief
 - No changes once the day starts.
 - Selling out ends the day.
-- All ice melts every night.
+- All ice melts every night, and lemonade left in the jug is poured out.
 - Bankruptcy as defined in §1.
 - Score is cash at the end of day 30.
 

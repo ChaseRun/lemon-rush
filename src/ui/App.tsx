@@ -210,6 +210,15 @@ function Report({ report: r, dayLengthMs, onNext }: { report: DayReport; dayLeng
             {ITEMS.map((i) => `${ITEM_EMOJI[i]} ${r.inventoryAfter[i]}`).join('   ')}
             <br />
             <span className="mk-note">🧊 {r.iceMelted} ice melted overnight.</span>
+            {r.pouredOut > 0 && (
+              <>
+                <br />
+                <span className="mk-note">
+                  🫗 {r.pouredOut} glass{r.pouredOut > 1 ? 'es' : ''} of lemonade left in the jug was poured out (those lemons
+                  and sugar are gone).
+                </span>
+              </>
+            )}
           </p>
         </section>
       </div>
