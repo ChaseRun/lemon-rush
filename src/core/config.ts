@@ -21,7 +21,7 @@ export const DAILY_COST = { amount: 2, label: "Mom's table rent" };
 export const PRICE_MIN = 0.5;
 export const PRICE_MAX = 5;
 
-/** Real-time length of one day (9am–5pm) in the Rush. */
+/** Real-time length of one day (9am–8pm) in the Rush. */
 export const DAY_LENGTH_MS = 90_000;
 
 // ---------- Shop ----------
@@ -148,7 +148,7 @@ export const NEWS_TABLE: { weight: number; event: NewsEvent }[] = [
       headline: 'Street crew working on your block.',
       ...NO_EFFECT,
       trafficMultiplier: 0.5,
-      extraArrivals: { type: 'worker', count: 8, atFractionOfDay: 3 / 8 }, // noon
+      extraArrivals: { type: 'worker', count: 8, atFractionOfDay: 3 / 11 }, // noon (9am–8pm day)
     },
   },
 ];

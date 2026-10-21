@@ -19,7 +19,7 @@ export function Report({
     ['😠', 'Walked out (waited too long)', r.walkouts],
     ['🚪', 'No room at the counter', r.noRoom],
     ['🚫', r.soldOutAtMs === null ? 'Sold out' : `Sold out at ${clock(r.soldOutAtMs, dayLengthMs)}`, r.soldOutMisses],
-    ['🕔', 'Still waiting at 5pm (not held against you)', r.leftAtClose],
+    ['🕔', 'Still waiting at closing time (not held against you)', r.leftAtClose],
   ];
   return (
     <main className="mk-page">

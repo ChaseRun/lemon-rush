@@ -41,6 +41,6 @@ describe('news', () => {
   it('street crew halves traffic and sends 8 workers at noon', () => {
     const crew = newsById('streetCrew');
     expect(crew.trafficMultiplier).toBe(0.5);
-    expect(crew.extraArrivals).toEqual({ type: 'worker', count: 8, atFractionOfDay: 3 / 8 });
+    expect(crew.extraArrivals).toEqual({ type: 'worker', count: 8, atFractionOfDay: 3 / 11 });
   });
 });
