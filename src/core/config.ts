@@ -109,10 +109,10 @@ export const CUSTOMER_TYPES: Record<
   CustomerTypeId,
   { label: string; emoji: string; share: number; basePay: number; patienceMs: number; tipRate: number }
 > = {
-  kid: { label: 'Allowance Kid', emoji: '🧒', share: 0.35, basePay: 1.25, patienceMs: 18_000, tipRate: 0 },
-  jogger: { label: 'Jogger', emoji: '🏃', share: 0.25, basePay: 2.5, patienceMs: 12_000, tipRate: 0.1 },
-  grandma: { label: 'Grandma', emoji: '👵', share: 0.2, basePay: 2.0, patienceMs: 25_000, tipRate: 0.3 },
-  worker: { label: 'Construction Worker', emoji: '👷', share: 0.2, basePay: 3.0, patienceMs: 15_000, tipRate: 0.15 },
+  kid: { label: 'Allowance Kid', emoji: '🧒', share: 0.35, basePay: 1.25, patienceMs: 22_000, tipRate: 0 },
+  jogger: { label: 'Jogger', emoji: '🏃', share: 0.25, basePay: 2.5, patienceMs: 15_000, tipRate: 0.1 },
+  grandma: { label: 'Grandma', emoji: '👵', share: 0.2, basePay: 2.0, patienceMs: 31_000, tipRate: 0.3 },
+  worker: { label: 'Construction Worker', emoji: '👷', share: 0.2, basePay: 3.0, patienceMs: 19_000, tipRate: 0.15 },
 };
 
 /** Tip = price × tipRate × this, by patience bar at serve time. Auto-serve always serves on green. */
