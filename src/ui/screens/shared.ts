@@ -36,9 +36,9 @@ export const money = (n: number) => (n < 0 ? `-$${(-n).toFixed(2)}` : `$${n.toFi
 export const pct = (n: number) => `${Math.round(n * 100)}%`;
 export const times = (n: number) => `×${Number(n.toFixed(2))}`;
 
-/** 0ms = 9:00am, dayLengthMs = 5:00pm. */
+/** 0ms = 9:00am, dayLengthMs = 8:00pm (matches the Rush clock). */
 export function clock(ms: number, dayLengthMs: number): string {
-  const minutes = 9 * 60 + Math.round((ms / dayLengthMs) * 8 * 60);
+  const minutes = 9 * 60 + Math.round((ms / dayLengthMs) * 11 * 60);
   const h24 = Math.floor(minutes / 60);
   const m = minutes % 60;
   return `${h24 > 12 ? h24 - 12 : h24}:${String(m).padStart(2, '0')}${h24 >= 12 ? 'pm' : 'am'}`;

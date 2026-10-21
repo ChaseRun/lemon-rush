@@ -362,7 +362,7 @@ export function drawFrame(g: Ctx, s: RushState, fx: Fx, layers: Layers) {
   g.globalAlpha = 1;
   g.drawImage(layers.back, 0, 0);
 
-  // Late afternoon: the light warms up toward 5pm
+  // Late afternoon: the light warms up toward closing
   const dayFrac = s.plan.dayLengthMs > 0 ? s.clockMs / s.plan.dayLengthMs : 0;
   if (dayFrac > 0.55) rect(g, 0, HUD_H, ART_W, FLOOR_Y - HUD_H, `rgba(255, 140, 60, ${((dayFrac - 0.55) / 0.45) * 0.2})`);
 
@@ -675,7 +675,7 @@ function drawMiniGame(g: Ctx, s: RushState, t: number) {
 }
 
 
-/** "9:00 AM" … "5:00 PM" */
+/** "9:00 AM" … "8:00 PM" */
 export function clockLabel(ms: number, dayLengthMs: number): string {
   const { openHour, closeHour } = RUSH_VIEW;
   const hours = openHour + ((closeHour - openHour) * ms) / Math.max(1, dayLengthMs);

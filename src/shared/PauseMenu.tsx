@@ -6,7 +6,7 @@ import './pause.css';
 
 export interface PauseMenuProps {
   onResume: () => void;
-  /** Close the stand now, exactly as at 5pm. */
+  /** Close the stand now, exactly as at closing time. */
   onEndDay: () => void;
 }
 

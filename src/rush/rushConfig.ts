@@ -19,8 +19,8 @@ export const RUSH = {
   reachPx: 40,
 
   // ---- Timing ----
-  /** 0.25 px/ms (slowed after play-testing): about 1.4s from the prep station to the nearest spot, 2.6s to the far one. */
-  kidSpeedPxPerMs: 0.25,
+  /** 0.3 px/ms (tuned by play-testing): about 1.2s from the prep station to the nearest spot, 2.1s to the far one. */
+  kidSpeedPxPerMs: 0.3,
   /** Glasses of lemonade a full jug holds. The jug starts the day empty. */
   jugCapacity: 10,
   /** Serve lock: no other action while a serve completes. */
@@ -95,9 +95,9 @@ export const RUSH_VIEW = {
   height: 420,
   /** The art is drawn at width/pixelScale × height/pixelScale "art pixels", then scaled up crisply. */
   pixelScale: 3,
-  /** The clock runs 9am → 5pm over the day's dayLengthMs. */
+  /** The clock runs 9am → 8pm over the day's dayLengthMs. */
   openHour: 9,
-  closeHour: 17,
+  closeHour: 20,
   /** Frames longer than this (tab switch, debugger) are clamped, which effectively pauses the Rush. */
   maxFrameMs: 250,
   /** How long a floating "+$X.XX" lives. */

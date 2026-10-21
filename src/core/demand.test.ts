@@ -187,7 +187,7 @@ describe('generateDemand', () => {
   it('street crew: half the traffic plus 8 workers arriving together at noon', () => {
     const quiet = demand({ price: 0.5, news: 'quiet' });
     const crew = demand({ price: 0.5, news: 'streetCrew' });
-    const noon = DAY_LENGTH_MS * (3 / 8);
+    const noon = Math.round(DAY_LENGTH_MS * (3 / 11)); // arrival times are whole ms
     const atNoon = crew.arrivals.filter((a) => a.atMs === noon && a.type === 'worker');
     expect(atNoon.length).toBeGreaterThanOrEqual(8);
     const weather = { sky: 'sunny', tempF: 80 } as const;
