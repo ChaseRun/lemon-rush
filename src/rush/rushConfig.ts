@@ -21,8 +21,12 @@ export const RUSH = {
   // ---- Timing ----
   /** 0.5 px/ms: about 0.7s from the prep station to the nearest spot, 1.3s to the far one. */
   kidSpeedPxPerMs: 0.5,
-  /** Hold Space at the prep station this long to make a glass. */
-  prepMs: 1000,
+  /** Glasses of lemonade a full jug holds. The jug starts the day empty. */
+  jugCapacity: 10,
+  /** Hold Space at the prep station this long to refill an empty jug. */
+  fillJugMs: 2000,
+  /** Hold Space at the prep station this long to pour one glass from the jug. */
+  pourMs: 300,
   /** Serve lock: no other action while a serve completes. */
   serveMs: 800,
 
@@ -49,6 +53,8 @@ export const RUSH_VIEW = {
   popupMs: 1000,
   /** How long the SOLD OUT / CLOSED banner shows before onFinish fires. */
   endBannerMs: 1800,
+  /** The jug is drawn just right of the prep station. */
+  jugX: 862,
   emoji: { kid: '🧒', jogger: '🏃', grandma: '👵', worker: '👷' } as Readonly<Record<CustomerTypeId, string>>,
   barColor: { green: '#3cb043', yellow: '#f2c200', red: '#e03c31' } as Readonly<Record<Bar, string>>,
 };

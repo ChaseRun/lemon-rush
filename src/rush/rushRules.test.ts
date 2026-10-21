@@ -12,7 +12,9 @@ import {
   createRush,
   earned,
   isOver,
+  reservedGlasses,
   spotInReach,
+  stationTask,
   step,
   stockLeft,
   taskProgress,
@@ -64,17 +66,30 @@ function walkTo(s: RushState, x: number): RushState {
   return s;
 }
 
-/** Walk to the prep station and hold Space for exactly prepMs. */
+/** Walk to the prep station and hold Space: refill the jug if it's empty, then pour one glass. */
 function makeGlass(s: RushState): RushState {
-  return hold(walkTo(s, RUSH.prepX), RUSH.prepMs, { space: true });
+  s = walkTo(s, RUSH.prepX);
+  if (s.jug === 0) s = hold(s, RUSH.fillJugMs, { space: true });
+  return hold(s, RUSH.pourMs, { space: true });
 }
+
+/** Time from opening to the first glass in hand (fill + pour; the kid starts at the station). */
+const FIRST_GLASS_MS = RUSH.fillJugMs + RUSH.pourMs; // 2300
+/** Walking from the prep station to spot 0. */
+const WALK_TO_SPOT0_MS = (RUSH.prepX - RUSH.spotX[0]) / RUSH.kidSpeedPxPerMs; // 720
 
 /** Walk to a spot, press Space, and wait out the serve lock. */
 function serve(s: RushState, spot: number): RushState {
   return hold(press(release(walkTo(s, RUSH.spotX[spot]))), RUSH.serveMs);
 }
 
-/** A simple competent player: make a glass, carry it to the least patient customer, repeat. */
+/** Wait until someone is at the counter, then serve the first spot taken. */
+function serveFirstWaiting(s: RushState): RushState {
+  for (let i = 0; i < 100_000 && s.spots.every((c) => c === null); i++) s = hold(s, FRAME);
+  return serve(s, s.spots.findIndex((c) => c !== null));
+}
+
+/** A simple competent player: fill/pour at the station, carry the glass to the least patient customer, repeat. */
 function bot(s: RushState): RushInput {
   if (s.task.kind === 'serving') return NO_INPUT;
   const goTo = (x: number): RushInput => ({ left: x < s.kidX, right: x > s.kidX, space: false });
@@ -122,6 +137,13 @@ function deepFreeze<T>(o: T): T {
   return o;
 }
 
+/** Things that must hold after every step, whatever the player does. Throws (cheaper than expect in a hot loop). */
+function checkStep(s: RushState) {
+  if (!(s.jug >= 0 && s.jug <= RUSH.jugCapacity && Number.isInteger(s.jug))) throw new Error(`bad jug ${s.jug}`);
+  if (unreservedGlasses(s) < 0) throw new Error('reserved more lemonade than the stock can make');
+  if (s.used.lemons !== s.served.length) throw new Error('stock used without a serve');
+}
+
 /** Things that must hold at the end of any Rush, whatever the player did. */
 function expectInvariants(s: RushState) {
   const o = toOutcome(s);
@@ -145,7 +167,7 @@ function expectInvariants(s: RushState) {
 describe('createRush', () => {
   it('opens at 9:00 with the kid at the prep station and the counter empty', () => {
     const s = createRush(makePlan([arrival(0, 5_000)]));
-    expect(s).toMatchObject({ clockMs: 0, phase: 'open', kidX: RUSH.kidStartX, holdingGlass: false });
+    expect(s).toMatchObject({ clockMs: 0, phase: 'open', kidX: RUSH.kidStartX, jug: 0, holdingGlass: false });
     expect(s.spots).toEqual([null, null, null]);
     expect(atPrepStation(s)).toBe(true);
   });
@@ -215,68 +237,127 @@ describe('arrivals and the counter', () => {
   });
 });
 
-describe('making a glass', () => {
-  it('takes prepMs of Space held at the prep station, and reserves (not uses) stock', () => {
-    let s = createRush(makePlan([], { inventory: stock(3) }));
-    s = hold(s, RUSH.prepMs - FRAME, { space: true });
-    expect(s.holdingGlass).toBe(false);
-    expect(taskProgress(s)).toBeCloseTo(0.99);
+describe('the jug', () => {
+  it('starts empty; filling takes fillJugMs of Space at the station and reserves (not uses) a full jug', () => {
+    let s = createRush(makePlan([], { inventory: stock(25) }));
+    expect(stationTask(s)).toBe('filling');
+    s = hold(s, RUSH.fillJugMs - FRAME, { space: true });
+    expect(s.task.kind).toBe('filling');
+    expect(s.jug).toBe(0);
+    expect(taskProgress(s)).toBeCloseTo(0.995);
     s = hold(s, FRAME, { space: true });
-    expect(s.holdingGlass).toBe(true);
-    expect(s.events).toContainEqual({ kind: 'glassReady', atMs: RUSH.prepMs });
-    expect(stockLeft(s)).toEqual(stock(3));
-    expect(unreservedGlasses(s)).toBe(2);
+    expect(s.jug).toBe(RUSH.jugCapacity);
+    expect(s.events).toContainEqual({ kind: 'jugFilled', atMs: RUSH.fillJugMs, glasses: RUSH.jugCapacity });
+    expect(s.used).toEqual(stock(0));
+    expect(stockLeft(s)).toEqual(stock(25));
+    expect(reservedGlasses(s)).toBe(10);
+    expect(unreservedGlasses(s)).toBe(15);
   });
 
-  it('releasing Space or moving drops the half-made glass', () => {
-    let s = createRush(makePlan([]));
-    s = hold(s, 900, { space: true });
-    s = hold(s, FRAME); // let go
-    expect(s.task.kind).toBe('idle');
-    s = hold(s, 900, { space: true });
+  it('a fill is capped by the glasses the unreserved stock can make', () => {
+    const plan = makePlan([], { inventory: { lemons: 4, sugar: 7, ice: 9, cups: 30 } });
+    const s = hold(createRush(plan), RUSH.fillJugMs, { space: true });
+    expect(s.jug).toBe(4);
+    expect(unreservedGlasses(s)).toBe(0);
+    expect(isOver(s)).toBe(false); // lemonade in the jug keeps the stand open
+  });
+
+  it('pouring takes pourMs and moves one glass from the jug to the kid, still using no stock', () => {
+    let s = release(hold(createRush(makePlan([], { inventory: stock(25) })), RUSH.fillJugMs, { space: true }));
+    expect(stationTask(s)).toBe('pouring');
+    s = hold(s, RUSH.pourMs - FRAME, { space: true });
+    expect(s.task.kind).toBe('pouring');
     expect(s.holdingGlass).toBe(false);
-    s = step(s, FRAME, { ...NO_INPUT, space: true, left: true }); // walk off
+    s = hold(s, FRAME, { space: true });
+    expect(s.holdingGlass).toBe(true);
+    expect(s.jug).toBe(RUSH.jugCapacity - 1);
+    expect(s.events).toContainEqual({ kind: 'poured', atMs: RUSH.fillJugMs + RUSH.pourMs });
+    expect(reservedGlasses(s)).toBe(10);
+    expect(s.used).toEqual(stock(0));
+  });
+
+  it('holding Space from an empty jug fills, then pours, with no gap', () => {
+    const s = hold(createRush(makePlan([], { inventory: stock(25) })), FIRST_GLASS_MS, { space: true });
+    expect(s).toMatchObject({ jug: RUSH.jugCapacity - 1, holdingGlass: true, clockMs: FIRST_GLASS_MS });
+  });
+
+  it('letting go of Space or moving cancels a fill or a pour, which then starts over', () => {
+    let s = createRush(makePlan([]));
+    s = hold(hold(s, RUSH.fillJugMs - 100, { space: true }), FRAME); // let go just before the jug is full
+    expect(s.task.kind).toBe('idle');
+    s = hold(s, RUSH.fillJugMs - 100, { space: true }); // starts over from 0
+    expect(s.jug).toBe(0);
+    s = step(s, FRAME, { ...NO_INPUT, space: true, left: true }); // walk off mid-fill
     expect(s.task.kind).toBe('idle');
     expect(s.kidX).toBeLessThan(RUSH.prepX);
-    expect(s.holdingGlass).toBe(false);
+    expect(s.jug).toBe(0);
+
+    s = release(hold(walkTo(s, RUSH.prepX), RUSH.fillJugMs, { space: true }));
+    expect(s.jug).toBe(10);
+    s = hold(hold(s, RUSH.pourMs - 100, { space: true }), FRAME); // let go mid-pour
+    s = step(hold(s, RUSH.pourMs - 100, { space: true }), FRAME, { ...NO_INPUT, space: true, left: true }); // walk off
+    expect(s.task.kind).toBe('idle');
+    expect(s).toMatchObject({ jug: 10, holdingGlass: false });
   });
 
   it('does nothing away from the prep station', () => {
     let s = walkTo(createRush(makePlan([])), RUSH.spotX[0]);
     s = hold(s, 3_000, { space: true });
-    expect(s.holdingGlass).toBe(false);
-    expect(s.task.kind).toBe('idle');
+    expect(s).toMatchObject({ jug: 0, holdingGlass: false, task: { kind: 'idle' } });
   });
 
-  it('the kid can carry only one glass', () => {
-    let s = makeGlass(createRush(makePlan([], { inventory: stock(5) })));
+  it('the kid can carry only one glass: no pouring while holding one', () => {
+    let s = makeGlass(createRush(makePlan([], { inventory: stock(5) }))); // jug 5 → 4 after the pour
+    expect(stationTask(s)).toBeNull();
     s = hold(s, 3_000, { space: true });
+    expect(s).toMatchObject({ jug: 4, holdingGlass: true, task: { kind: 'idle' } });
+    expect(unreservedGlasses(s)).toBe(0);
+  });
+
+  it('must be refilled after jugCapacity pours, which works even with a glass in hand', () => {
+    const arrivals = Array.from({ length: 11 }, (_, i) => arrival(i, i * 3_000, { patienceMs: 1_000_000 }));
+    let s = createRush(makePlan(arrivals, { inventory: stock(25), dayLengthMs: 300_000 }));
+    for (let poured = 1; poured <= RUSH.jugCapacity; poured++) {
+      s = makeGlass(s); // fills only the first time
+      expect(s.jug).toBe(RUSH.jugCapacity - poured);
+      if (poured < RUSH.jugCapacity) s = serveFirstWaiting(s);
+    }
+    expect(s.served).toHaveLength(9);
+    // Jug empty, 10th glass in hand. Holding Space now refills instead of pouring.
+    expect(stationTask(s)).toBe('filling');
+    s = hold(s, RUSH.pourMs, { space: true });
+    expect(s.task.kind).toBe('filling');
+    s = hold(s, RUSH.fillJugMs - RUSH.pourMs, { space: true });
+    expect(s.jug).toBe(10); // 25 - 9 used - 1 in hand = 15 unreserved, capped at 10
     expect(s.holdingGlass).toBe(true);
-    expect(s.task.kind).toBe('idle');
-    expect(unreservedGlasses(s)).toBe(4);
+    s = serveFirstWaiting(s);
+    expect(toOutcome(s).used).toEqual(stock(10));
+    expect(stockLeft(s)).toEqual(stock(15));
   });
 });
 
 describe('serving', () => {
-  it('a full make-and-serve uses exactly 1 of each item and pays price + tip', () => {
+  it('a full fill → pour → serve uses exactly 1 of each item and pays price + tip', () => {
     const plan = makePlan([arrival(7, 0, { type: 'worker', patienceMs: 15_000, tipRate: 0.15 })], {
       inventory: stock(5),
     });
-    let s = makeGlass(createRush(plan)); // t = 1000
+    let s = makeGlass(createRush(plan)); // t = 2300
     expect(s.used).toEqual(stock(0));
-    s = walkTo(s, RUSH.spotX[0]); // t = 1720
+    s = walkTo(s, RUSH.spotX[0]); // t = 3020: 80% patience left
     s = press(s);
     expect(s.task.kind).toBe('serving');
-    s = hold(s, RUSH.serveMs); // t = 2520
+    s = hold(s, RUSH.serveMs); // t = 3820
+    const servedAt = FIRST_GLASS_MS + WALK_TO_SPOT0_MS + RUSH.serveMs;
 
     const o = toOutcome(s);
-    expect(o.served).toEqual([{ arrivalId: 7, type: 'worker', paid: 2, tip: 0.3, bar: 'green', atMs: 2_520 }]);
+    expect(o.served).toEqual([{ arrivalId: 7, type: 'worker', paid: 2, tip: 0.3, bar: 'green', atMs: servedAt }]);
     expect(o.used).toEqual(stock(1));
-    expect(stockLeft(s)).toEqual(stock(4));
+    expect(stockLeft(s)).toEqual(stock(4)); // the 4 glasses still in the jug are reserved, not used
+    expect(s.jug).toBe(4);
     expect(earned(s)).toBe(2.3);
     expect(s.spots[0]).toBeNull();
     expect(s.holdingGlass).toBe(false);
-    expect(s.events).toContainEqual({ kind: 'served', atMs: 2_520, spot: 0, amount: 2.3, text: '+$2.30' });
+    expect(s.events).toContainEqual({ kind: 'served', atMs: servedAt, spot: 0, amount: 2.3, text: '+$2.30' });
   });
 
   it('pressing Space at a customer without a glass does nothing', () => {
@@ -322,8 +403,8 @@ describe('serving', () => {
   });
 
   it('a customer being served cannot walk out, even with almost no patience left', () => {
-    let s = makeGlass(createRush(makePlan([arrival(0, 0, { patienceMs: 2_000 })]))); // t = 1000
-    s = walkTo(s, RUSH.spotX[0]); // t = 1720: 280ms of patience left
+    let s = makeGlass(createRush(makePlan([arrival(0, 0, { patienceMs: 3_500 })]))); // t = 2300
+    s = walkTo(s, RUSH.spotX[0]); // t = 3020: 480ms of patience left
     s = serve(s, 0);
     expect(s.walkouts).toBe(0);
     expect(s.served[0].bar).toBe('red');
@@ -347,12 +428,12 @@ describe('patience bar and tips', () => {
     expect(tipFor(1.25, 0, 'green')).toBe(0);
   });
 
-  // Grandma (30% tip rate, 10s patience) arrives at 0. The glass is ready at 1000 and the kid is at
-  // spot 0 at 1720, then waits `waitMs` before pressing Space.
+  // Grandma (30% tip rate, 10s patience) arrives at 0. The glass is poured at 2300 and the kid is at
+  // spot 0 at 3020, then waits `waitMs` before pressing Space.
   it.each([
-    { waitMs: 0, bar: 'green', tip: 0.6 }, // 82.8% left
-    { waitMs: 3_000, bar: 'yellow', tip: 0.3 }, // 52.8% left
-    { waitMs: 6_000, bar: 'red', tip: 0 }, // 22.8% left
+    { waitMs: 0, bar: 'green', tip: 0.6 }, // 69.8% left
+    { waitMs: 2_000, bar: 'yellow', tip: 0.3 }, // 49.8% left
+    { waitMs: 5_000, bar: 'red', tip: 0 }, // 19.8% left
   ])('serving after waiting $waitMs ms is $bar and tips $tip', ({ waitMs, bar, tip }) => {
     const plan = makePlan([arrival(0, 0, { type: 'grandma', tipRate: 0.3 })]);
     let s = walkTo(makeGlass(createRush(plan)), RUSH.spotX[0]);
@@ -364,15 +445,16 @@ describe('patience bar and tips', () => {
 
 describe('walkouts', () => {
   it('at 0 patience the customer walks out: no payment and no stock used', () => {
-    let s = makeGlass(createRush(makePlan([arrival(1, 0, { patienceMs: 2_000 })]))); // t = 1000
-    s = hold(s, 990);
+    let s = makeGlass(createRush(makePlan([arrival(1, 0, { patienceMs: 3_000 })]))); // t = 2300
+    s = hold(s, 690);
     expect(s.walkouts).toBe(0);
     s = hold(s, FRAME);
     expect(s.walkouts).toBe(1);
     expect(s.spots[0]).toBeNull();
-    expect(s.events).toContainEqual({ kind: 'walkout', atMs: 2_000, spot: 0 });
-    // The glass the kid made stays reserved for someone else; nothing was used.
+    expect(s.events).toContainEqual({ kind: 'walkout', atMs: 3_000, spot: 0 });
+    // The glass in hand and the jug stay reserved for someone else; nothing was used.
     expect(s.holdingGlass).toBe(true);
+    expect(s.jug).toBe(9);
     expect(toOutcome(s)).toMatchObject({ served: [], walkouts: 1, used: stock(0) });
     expect(earned(s)).toBe(0);
   });
@@ -383,10 +465,15 @@ describe('selling out', () => {
     const plan = makePlan([arrival(0, 0), arrival(1, 100), arrival(2, 200), arrival(3, 60_000), arrival(4, 90_000)], {
       inventory: { lemons: 5, sugar: 1, ice: 5, cups: 5 }, // only 1 glass's worth
     });
-    let s = makeGlass(createRush(plan));
-    // Holding the last glass: nothing unreserved, but the day goes on.
+    let s = makeGlass(createRush(plan)); // the fill only gets 1 glass; it's poured
+    // Holding the last glass with the jug empty: nothing unreserved, but the day goes on.
+    expect(s).toMatchObject({ jug: 0, holdingGlass: true });
     expect(unreservedGlasses(s)).toBe(0);
     expect(isOver(s)).toBe(false);
+    // There's nothing left to fill the jug with.
+    expect(stationTask(s)).toBeNull();
+    s = hold(s, 3_000, { space: true });
+    expect(s.task.kind).toBe('idle');
 
     s = serve(s, 0);
     expect(s.phase).toBe('soldOut');
@@ -404,6 +491,21 @@ describe('selling out', () => {
     const later = step(s, 60_000, { left: true, right: false, space: true });
     expect(toOutcome(later)).toEqual(o);
     expect(later.clockMs).toBe(s.clockMs);
+  });
+
+  it('lemonade left in the jug keeps the stand open; it sells out only when the jug and hands are empty', () => {
+    const waiting = [0, 100, 200].map((t, i) => arrival(i, t, { patienceMs: 60_000 }));
+    const plan = makePlan([...waiting, arrival(3, 100_000)], { inventory: stock(3) });
+    let s = makeGlass(createRush(plan)); // jug 3 → 2 after the pour
+    expect(unreservedGlasses(s)).toBe(0);
+    s = serveFirstWaiting(s);
+    expect(s).toMatchObject({ phase: 'open', jug: 2 });
+    s = serveFirstWaiting(makeGlass(s));
+    expect(s).toMatchObject({ phase: 'open', jug: 1 });
+    s = serveFirstWaiting(makeGlass(s));
+    expect(s).toMatchObject({ phase: 'soldOut', jug: 0 });
+    expect(toOutcome(s)).toMatchObject({ soldOutMisses: 1, used: stock(3) });
+    expect(s.served).toHaveLength(3);
   });
 });
 
@@ -439,11 +541,26 @@ describe('closing time', () => {
   });
 
   it('a serve still in progress at closing is abandoned and uses no stock', () => {
-    const short = makePlan([arrival(0, 0)], { dayLengthMs: 2_000 });
-    let s = walkTo(makeGlass(createRush(short)), RUSH.spotX[0]); // t = 1720
-    s = serve(s, 0); // the lock would end at 2520
+    const short = makePlan([arrival(0, 0)], { dayLengthMs: 3_500 });
+    let s = walkTo(makeGlass(createRush(short)), RUSH.spotX[0]); // t = 3020
+    s = serve(s, 0); // the lock would end at 3820
     expect(s.phase).toBe('closed');
     expect(toOutcome(s)).toMatchObject({ served: [], walkouts: 0, used: stock(0) });
+    expect(s.leftAtClose).toBe(1);
+  });
+
+  it('lemonade left in the jug (or in hand) at closing uses no stock', () => {
+    const plan = makePlan([arrival(0, 0), arrival(1, 5_000, { patienceMs: 60_000 })], {
+      inventory: stock(25),
+      dayLengthMs: 20_000,
+    });
+    let s = serve(makeGlass(createRush(plan)), 0);
+    s = makeGlass(s);
+    s = hold(s, 20_000);
+    expect(s.phase).toBe('closed');
+    expect(s).toMatchObject({ jug: 8, holdingGlass: true });
+    expect(toOutcome(s).used).toEqual(stock(1));
+    expect(stockLeft(s)).toEqual(stock(24));
     expect(s.leftAtClose).toBe(1);
   });
 });
@@ -471,8 +588,19 @@ describe('determinism and invariants', () => {
       { type: 'grandma', patienceMs: 25_000, tipRate: 0.3 },
       { type: 'worker', patienceMs: 15_000, tipRate: 0.15 },
     ];
+    const seen = { served: 0, walkouts: 0, noRoom: 0, soldOut: 0, closed: 0, partialFills: 0, refills: 0 };
     const run = (seed: number) => {
       const rand = mulberry32(seed);
+      let fills = 0;
+      const watch = (s: RushState) => {
+        checkStep(s);
+        for (const e of s.events) {
+          if (e.kind !== 'jugFilled') continue;
+          fills += 1;
+          if (e.glasses < RUSH.jugCapacity) seen.partialFills += 1;
+          if (fills === 2) seen.refills += 1;
+        }
+      };
       const n = Math.floor(rand() * 45);
       const arrivals = Array.from({ length: n }, (_, id) => {
         const t = TYPES[Math.floor(rand() * TYPES.length)];
@@ -480,13 +608,15 @@ describe('determinism and invariants', () => {
       });
       const inventory = { lemons: Math.floor(rand() * 30), sugar: 30, ice: Math.floor(rand() * 30), cups: 30 };
       const plan = makePlan(arrivals, { inventory, price: 0.5 + Math.floor(rand() * 10) * 0.25 });
-      return play(
-        plan,
-        (s) => (rand() < 0.3 ? { left: rand() < 0.5, right: rand() < 0.5, space: rand() < 0.5 } : bot(s)),
-        () => 1 + rand() * 60,
-      );
+      // Alternate between bot play (~3s stretches) and bursts of random key mashing (~0.6s), so long
+      // holds like a 2s jug fill sometimes finish and sometimes get interrupted.
+      let mashing = false;
+      const policy = (s: RushState): RushInput => {
+        mashing = mashing ? rand() > 0.05 : rand() < 0.01;
+        return mashing ? { left: rand() < 0.5, right: rand() < 0.5, space: rand() < 0.5 } : bot(s);
+      };
+      return play(plan, policy, () => 1 + rand() * 60, watch);
     };
-    const seen = { served: 0, walkouts: 0, noRoom: 0, soldOut: 0, closed: 0 };
     for (let seed = 1; seed <= 40; seed++) {
       const s = run(seed);
       expectInvariants(s);
@@ -497,7 +627,7 @@ describe('determinism and invariants', () => {
       seen.soldOut += s.phase === 'soldOut' ? 1 : 0;
       seen.closed += s.phase === 'closed' ? 1 : 0;
     }
-    // The fuzz really exercises every way a customer can leave and both ways a day can end.
-    for (const count of Object.values(seen)) expect(count).toBeGreaterThan(0);
+    // The fuzz really exercises every way a customer can leave, both ways a day can end, short fills and refills.
+    for (const [what, count] of Object.entries(seen)) expect(count, what).toBeGreaterThan(0);
   });
 });

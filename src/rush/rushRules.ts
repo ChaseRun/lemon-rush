@@ -10,6 +10,10 @@
 //   3. arrivals due by now take the first free spot, or count as no-room
 //   4. 5pm closing
 // A serve completing can sell the stand out (step 1), which ends the day on the spot.
+//
+// Stock flow: stock ──fill jug──► jug (reserved) ──pour──► held glass (reserved) ──serve──► used.
+// Only a completed serve uses stock. Lemonade still in the jug or in the kid's hand when the day ends
+// was only ever reserved, so it costs nothing.
 
 import type { Arrival, Bar, DayOutcome, DayPlan, Inventory, ServedRecord } from '../contract';
 import { ITEMS } from '../contract';
@@ -34,8 +38,10 @@ export interface WaitingCustomer {
 
 export type KidTask =
   | { kind: 'idle' }
-  /** Holding Space at the prep station. */
-  | { kind: 'prepping'; elapsedMs: number }
+  /** Holding Space at the prep station with the jug empty. Takes RUSH.fillJugMs. */
+  | { kind: 'filling'; elapsedMs: number }
+  /** Holding Space at the prep station, empty-handed, with lemonade in the jug. Takes RUSH.pourMs. */
+  | { kind: 'pouring'; elapsedMs: number }
   /** Serve lock: nothing else can happen until elapsedMs reaches RUSH.serveMs. */
   | { kind: 'serving'; spot: number; elapsedMs: number };
 
@@ -43,7 +49,8 @@ export type RushPhase = 'open' | 'soldOut' | 'closed';
 
 /** Things that happened during the most recent step(), for the renderer (pop-ups, sounds). */
 export type RushEvent =
-  | { kind: 'glassReady'; atMs: number }
+  | { kind: 'jugFilled'; atMs: number; glasses: number }
+  | { kind: 'poured'; atMs: number }
   | { kind: 'served'; atMs: number; spot: number; amount: number; text: string }
   | { kind: 'walkout'; atMs: number; spot: number }
   | { kind: 'noRoom'; atMs: number; arrivalId: number }
@@ -60,6 +67,8 @@ export interface RushState {
   clockMs: number;
   phase: RushPhase;
   kidX: number;
+  /** Glasses of lemonade in the jug, 0..RUSH.jugCapacity. Each reserves 1 of each item. Starts empty. */
+  jug: number;
   /** The kid can carry at most one glass. A held glass reserves 1 of each item until served. */
   holdingGlass: boolean;
   task: KidTask;
@@ -72,7 +81,7 @@ export interface RushState {
   noRoom: number;
   soldOutMisses: number;
   soldOutAtMs: number | null;
-  /** Still waiting (or mid-serve) at 5pm. They just leave: not walkouts. Not part of DayOutcome. */
+  /** Still waiting (or mid-serve) at 5pm, or never arrived before closing. They just leave: not walkouts. */
   leftAtClose: number;
   /** Stock consumed so far (1 of each item per completed serve). */
   used: Inventory;
@@ -115,16 +124,27 @@ export function popupText(amount: number): string {
 
 // ---------- Selectors (also used by the renderer) ----------
 
-/** Opening stock minus what's been used. Includes the glass the kid is holding (reserved, not used). */
+/** Opening stock minus what's been used. Includes lemonade in the jug and in the kid's hand (reserved, not used). */
 export function stockLeft(s: RushState): Inventory {
   const inv = { ...s.plan.inventory };
   for (const item of ITEMS) inv[item] -= s.used[item];
   return inv;
 }
 
-/** Glasses the stock can still make, not counting the one the kid is holding. */
+/** Glasses already promised: what's in the jug plus the glass the kid is holding. */
+export function reservedGlasses(s: RushState): number {
+  return s.jug + (s.holdingGlass ? 1 : 0);
+}
+
+/** Glasses the stock can still make that aren't already in the jug or the kid's hand. */
 export function unreservedGlasses(s: RushState): number {
-  return glassesMakeable(stockLeft(s)) - (s.holdingGlass ? 1 : 0);
+  return glassesMakeable(stockLeft(s)) - reservedGlasses(s);
+}
+
+/** What holding Space at the prep station would do right now, or null if nothing. */
+export function stationTask(s: RushState): 'filling' | 'pouring' | null {
+  if (s.jug === 0) return unreservedGlasses(s) > 0 ? 'filling' : null;
+  return s.holdingGlass ? null : 'pouring';
 }
 
 /** Price + tips earned so far. */
@@ -142,11 +162,15 @@ export function spotInReach(s: RushState): number | null {
   return i === -1 ? null : i;
 }
 
-/** 0..1 progress of the current prep or serve, or null when idle. */
+/** How long each timed task takes. */
+export function taskDurationMs(kind: 'filling' | 'pouring' | 'serving'): number {
+  return { filling: RUSH.fillJugMs, pouring: RUSH.pourMs, serving: RUSH.serveMs }[kind];
+}
+
+/** 0..1 progress of the current fill, pour or serve, or null when idle. */
 export function taskProgress(s: RushState): number | null {
-  if (s.task.kind === 'prepping') return clamp(s.task.elapsedMs / RUSH.prepMs, 0, 1);
-  if (s.task.kind === 'serving') return clamp(s.task.elapsedMs / RUSH.serveMs, 0, 1);
-  return null;
+  if (s.task.kind === 'idle') return null;
+  return clamp(s.task.elapsedMs / taskDurationMs(s.task.kind), 0, 1);
 }
 
 export function isOver(s: RushState): boolean {
@@ -163,6 +187,7 @@ export function createRush(plan: DayPlan): RushState {
     clockMs: 0,
     phase: 'open',
     kidX: RUSH.kidStartX,
+    jug: 0,
     holdingGlass: false,
     task: IDLE,
     spots: RUSH.spotX.map(() => null),
@@ -185,7 +210,8 @@ export function createRush(plan: DayPlan): RushState {
 
 /**
  * Advance the Rush by dtMs with the given keys held. Pure: returns a new state.
- * A Space press (up → down since the last step) can start a serve; holding Space makes a glass.
+ * A Space press (up → down since the last step) can start a serve; holding Space at the prep station
+ * fills the jug (when empty) or pours a glass (when empty-handed).
  * dtMs <= 0 still processes input (e.g. a press) without advancing time.
  */
 export function step(state: RushState, dtMs: number, input: RushInput): RushState {
@@ -246,35 +272,52 @@ function advance(s: RushState, dt: number, input: RushInput, pressed: boolean): 
 function actKid(s: RushState, t0: number, dt: number, input: RushInput, pressed: boolean): void {
   const dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
 
-  // Prepping needs Space held and the kid standing still; otherwise the half-made glass is dropped.
-  if (s.task.kind === 'prepping' && !(input.space && dir === 0)) s.task = IDLE;
+  const holdingStill = input.space && dir === 0;
+
+  // Filling and pouring need Space held and the kid standing still; otherwise they're cancelled
+  // and start over next time (the jug and the kid's hands are unchanged).
+  if ((s.task.kind === 'filling' || s.task.kind === 'pouring') && !holdingStill) s.task = IDLE;
 
   if (s.task.kind === 'idle') {
     const spot = pressed && s.holdingGlass ? customerSpotInReach(s) : null;
+    const atStation = holdingStill && atPrepStation(s) ? stationTask(s) : null;
     if (spot !== null) {
       s.task = { kind: 'serving', spot, elapsedMs: 0 };
-    } else if (input.space && dir === 0 && !s.holdingGlass && atPrepStation(s) && unreservedGlasses(s) > 0) {
-      s.task = { kind: 'prepping', elapsedMs: 0 };
+    } else if (atStation !== null) {
+      s.task = { kind: atStation, elapsedMs: 0 };
     } else {
       s.kidX = clamp(s.kidX + dir * RUSH.kidSpeedPxPerMs * dt, RUSH.kidMinX, RUSH.kidMaxX);
       return;
     }
   }
 
-  // A task started at the top of this slice spends the whole slice on it.
+  // A task started at the top of this slice spends the whole slice on it. Time left over in the slice
+  // after a task finishes is not used (the kid acts again next slice).
   const task = s.task;
-  if (task.kind === 'prepping') {
-    if (task.elapsedMs + dt >= RUSH.prepMs) {
-      s.task = IDLE;
-      s.holdingGlass = true; // reserves 1 of each item
-      s.events.push({ kind: 'glassReady', atMs: t0 + (RUSH.prepMs - task.elapsedMs) });
-    } else {
-      s.task = { ...task, elapsedMs: task.elapsedMs + dt };
-    }
-  } else if (task.kind === 'serving') {
-    if (task.elapsedMs + dt >= RUSH.serveMs) finishServe(s, task.spot, t0 + (RUSH.serveMs - task.elapsedMs));
-    else s.task = { ...task, elapsedMs: task.elapsedMs + dt };
+  if (task.kind === 'idle') return;
+  const durationMs = taskDurationMs(task.kind);
+  if (task.elapsedMs + dt < durationMs) {
+    s.task = { ...task, elapsedMs: task.elapsedMs + dt };
+    return;
   }
+  const doneAtMs = t0 + (durationMs - task.elapsedMs);
+  s.task = IDLE;
+  if (task.kind === 'filling') finishFill(s, doneAtMs);
+  else if (task.kind === 'pouring') finishPour(s, doneAtMs);
+  else finishServe(s, task.spot, doneAtMs);
+}
+
+/** The jug takes as many glasses as it holds, or as the unreserved stock can make, whichever is fewer. */
+function finishFill(s: RushState, atMs: number): void {
+  s.jug = Math.min(RUSH.jugCapacity, unreservedGlasses(s)); // reserved, not used
+  s.events.push({ kind: 'jugFilled', atMs, glasses: s.jug });
+}
+
+/** One glass moves from the jug to the kid's hand. It stays reserved until served. */
+function finishPour(s: RushState, atMs: number): void {
+  s.jug -= 1;
+  s.holdingGlass = true;
+  s.events.push({ kind: 'poured', atMs });
 }
 
 function customerSpotInReach(s: RushState): number | null {
@@ -335,9 +378,12 @@ function emptyStand(s: RushState): number {
   return count;
 }
 
-/** Sold out = the unreserved stock can't make a glass and the kid isn't holding one. Ends the day. */
+/**
+ * Sold out = the unreserved stock can't make a glass, the jug is empty and the kid isn't holding one.
+ * Ends the day. Only a completed serve can make this newly true, so it's checked there (and at opening).
+ */
 function checkSoldOut(s: RushState, atMs: number): void {
-  if (s.phase !== 'open' || s.holdingGlass || glassesMakeable(stockLeft(s)) > 0) return;
+  if (s.phase !== 'open' || s.holdingGlass || s.jug > 0 || unreservedGlasses(s) > 0) return;
   s.phase = 'soldOut';
   s.clockMs = atMs;
   s.soldOutAtMs = atMs;
@@ -345,7 +391,10 @@ function checkSoldOut(s: RushState, atMs: number): void {
   s.events.push({ kind: 'soldOut', atMs });
 }
 
-/** 5pm: everyone still waiting just leaves. A serve still in progress is abandoned (no stock used). */
+/**
+ * 5pm: everyone still waiting just leaves. A serve still in progress is abandoned. Lemonade left in the
+ * jug or the kid's hand was only reserved, so it uses no stock.
+ */
 function close(s: RushState, atMs: number): void {
   s.phase = 'closed';
   s.leftAtClose += emptyStand(s);

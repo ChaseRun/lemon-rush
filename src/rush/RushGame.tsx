@@ -15,6 +15,7 @@ import {
   isOver,
   patienceFraction,
   spotInReach,
+  stationTask,
   step,
   stockLeft,
   taskProgress,
@@ -123,7 +124,8 @@ export function RushGame({ plan, onFinish }: RushGameProps) {
         style={{ width: RUSH_VIEW.width, height: RUSH_VIEW.height, display: 'block', border: '1px solid #ccc' }}
       />
       <p style={{ fontFamily: 'system-ui, sans-serif', fontSize: 14 }}>
-        ← / → or A / D to move · hold <b>Space</b> at 🍋 to make a glass · press <b>Space</b> at a customer to serve
+        ← / → or A / D to move · hold <b>Space</b> at 🍋 to fill the jug (when empty) or pour a glass · press{' '}
+        <b>Space</b> at a customer to serve
       </p>
     </div>
   );
@@ -139,6 +141,7 @@ const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", s
 
 function popupFor(e: RushEvent): Popup[] {
   if (e.kind === 'served') return [{ text: e.text, color: '#1a7f37', x: RUSH.spotX[e.spot], ageMs: 0 }];
+  if (e.kind === 'jugFilled') return [{ text: `jug ${e.glasses}/${RUSH.jugCapacity}`, color: '#8a6d00', x: RUSH_VIEW.jugX - 20, ageMs: 0 }];
   if (e.kind === 'walkout') return [{ text: 'walked out!', color: '#c0392b', x: RUSH.spotX[e.spot], ageMs: 0 }];
   if (e.kind === 'noRoom') return [{ text: 'no room!', color: '#c0392b', x: RUSH.spotX[RUSH.spotX.length - 1] - 70, ageMs: 0 }];
   return [];
@@ -154,8 +157,11 @@ function clockLabel(ms: number, dayLengthMs: number): string {
 
 function kidStatus(s: RushState): string {
   if (s.task.kind === 'serving') return 'Serving…';
-  if (s.task.kind === 'prepping') return 'Making a glass…';
-  return s.holdingGlass ? 'Holding a glass' : 'Empty-handed';
+  if (s.task.kind === 'filling') return 'Filling jug…';
+  if (s.task.kind === 'pouring') return 'Pouring…';
+  if (s.holdingGlass) return s.jug === 0 && stationTask(s) ? 'Holding a glass (jug empty)' : 'Holding a glass';
+  if (s.jug === 0) return 'Jug empty: hold Space at the station to refill';
+  return 'Empty-handed: hold Space at the station to pour';
 }
 
 function text(ctx: CanvasRenderingContext2D, str: string, x: number, y: number, size: number, color = '#222', align: CanvasTextAlign = 'center') {
@@ -190,7 +196,7 @@ function draw(ctx: CanvasRenderingContext2D, s: RushState, popups: Popup[]) {
   text(ctx, clockLabel(s.clockMs, s.plan.dayLengthMs), 14, 22, 18, '#222', 'left');
   text(ctx, `Earned $${earned(s).toFixed(2)}`, 120, 22, 18, '#1a7f37', 'left');
   text(ctx, `Stock  🍋${stock.lemons}  🍬${stock.sugar}  🧊${stock.ice}  🥤${stock.cups}`, 290, 22, 16, '#222', 'left');
-  text(ctx, kidStatus(s), W - 14, 22, 16, '#555', 'right');
+  text(ctx, kidStatus(s), W - 14, 22, 14, '#555', 'right');
 
   // Kid's lane
   ctx.fillStyle = '#f3e3b5';
@@ -217,6 +223,24 @@ function draw(ctx: CanvasRenderingContext2D, s: RushState, popups: Popup[]) {
   ctx.strokeRect(RUSH.prepX - BOX / 2, ROW_Y - BOX / 2, BOX, BOX);
   emoji(ctx, '🍋', RUSH.prepX, ROW_Y - 6, 40);
   text(ctx, 'PREP', RUSH.prepX, ROW_Y + BOX / 2 - 10, 11, '#555');
+
+  // Jug: outline, lemonade level, "7/10"
+  const jugW = 30;
+  const jugH = 64;
+  const jugLeft = RUSH_VIEW.jugX - jugW / 2;
+  const jugTop = ROW_Y - jugH / 2;
+  const level = s.jug / RUSH.jugCapacity;
+  ctx.fillStyle = '#f5d547';
+  ctx.fillRect(jugLeft, jugTop + jugH * (1 - level), jugW, jugH * level);
+  if (s.task.kind === 'filling') {
+    ctx.fillStyle = 'rgba(245, 213, 71, 0.4)';
+    const rising = jugH * (taskProgress(s) ?? 0);
+    ctx.fillRect(jugLeft, jugTop + jugH - rising, jugW, rising);
+  }
+  ctx.strokeStyle = s.jug === 0 ? '#c0392b' : '#888';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(jugLeft, jugTop, jugW, jugH);
+  text(ctx, `${s.jug}/${RUSH.jugCapacity}`, RUSH_VIEW.jugX, jugTop + jugH + 12, 13, s.jug === 0 ? '#c0392b' : '#333');
 
   // Kid, held glass, task progress
   emoji(ctx, '🙂', s.kidX, KID_Y, 40);
