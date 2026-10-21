@@ -22,6 +22,10 @@ const KEYS: Record<string, keyof RushInput> = {
   KeyA: 'left',
   ArrowRight: 'right',
   KeyD: 'right',
+  ArrowUp: 'up',
+  KeyW: 'up',
+  ArrowDown: 'down',
+  KeyS: 'down',
   Space: 'space',
 };
 
@@ -62,12 +66,12 @@ export function RushGame({ plan, onFinish }: RushGameProps) {
     const layers = buildLayers(plan.weather?.sky ?? 'sunny');
     let state = createRush(plan);
     let fx = createFx();
-    const keys: RushInput = { left: false, right: false, space: false };
+    const keys: RushInput = { left: false, right: false, space: false, up: false, down: false };
     let lastNow: number | null = null;
     let rafId = 0;
 
     const releaseKeys = () => {
-      keys.left = keys.right = keys.space = false;
+      keys.left = keys.right = keys.space = keys.up = keys.down = false;
     };
     const onKey = (down: boolean) => (e: KeyboardEvent) => {
       if (down && (e.code === 'Escape' || e.code === 'KeyP') && !isOver(state)) {
@@ -171,8 +175,8 @@ export function RushGame({ plan, onFinish }: RushGameProps) {
         )}
       </div>
       <p className="rush-help">
-        ←/→ or A/D move · hold <b>Space</b> at the stand to fill the jug, then again to pour a glass · tap{' '}
-        <b>Space</b> at a customer to serve
+        ←/→ or A/D move · empty jug: hold <b>Space</b> at the stand, then squeeze ← → · tap <b>Space</b> on the
+        sweet spot · stir ↑ → ↓ ← · pour: hold <b>Space</b>, let go at the line · tap <b>Space</b> at a customer to serve
       </p>
     </div>
   );
