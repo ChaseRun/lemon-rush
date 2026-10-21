@@ -2,14 +2,15 @@
 // All game rules come from the engine; this file only holds UI state and passes player choices to it.
 
 import { useCallback, useRef, useState } from 'react';
-import type { CustomerTypeId, DayOutcome, DayPlan, DayReport, GameState, Item } from '../contract';
-import { ITEMS } from '../contract';
+import type { DayOutcome, DayPlan, DayReport, GameState, Item } from '../contract';
 import { engine } from '../engine';
 import { RushGame } from '../rush';
 import { WindowRush } from '../window';
+import { Calendar } from './screens/Calendar';
 import { Morning, TopBar } from './screens/Morning';
+import { Report } from './screens/Report';
 import { Rules } from './screens/Rules';
-import { CUSTOMER_TYPES, ITEM_EMOJI, SKY_EMOJI, SKY_NAME, clock, money, pct } from './screens/shared';
+import { SKY_EMOJI, money } from './screens/shared';
 import { StartScreen } from './start/StartScreen';
 import './theme.css';
 
@@ -36,6 +37,7 @@ export function App() {
   const [report, setReport] = useState<DayReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [rushStyle, setRushStyleState] = useState<RushStyle>(loadRushStyle);
   const setRushStyle = (s: RushStyle) => {
     setRushStyleState(s);
@@ -106,6 +108,15 @@ export function App() {
     );
   }
 
+  if (showCalendar && phase !== 'start') {
+    return (
+      <div className="mk">
+        <TopBar game={game} />
+        <Calendar game={game} onBack={() => setShowCalendar(false)} />
+      </div>
+    );
+  }
+
   if (phase === 'start') {
     return <StartScreen onStart={() => setPhase('morning')} onRules={() => setShowRules(true)} />;
   }
@@ -126,9 +137,14 @@ export function App() {
                 Window
               </button>
             </span>
-            <button className="mk-link" onClick={() => setShowRules(true)}>
-              📖 Rules
-            </button>
+            <span className="mk-style">
+              <button className="mk-link" onClick={() => setShowCalendar(true)}>
+                📅 Calendar
+              </button>
+              <button className="mk-link" onClick={() => setShowRules(true)}>
+                📖 Rules
+              </button>
+            </span>
           </div>
           <Morning
             game={game}
@@ -151,120 +167,30 @@ export function App() {
       )}
 
       {phase === 'report' && report && plan && (
-        <Report report={report} dayLengthMs={plan.dayLengthMs} onNext={() => setPhase('morning')} />
+        <Report
+          report={report}
+          dayLengthMs={plan.dayLengthMs}
+          actions={
+            <>
+              <button className="mk-btn" onClick={() => setShowCalendar(true)}>
+                📅 Calendar
+              </button>
+              <button className="mk-btn primary" onClick={() => setPhase('morning')}>
+                Next morning
+              </button>
+            </>
+          }
+        />
       )}
 
-      {phase === 'morning' && game.status !== 'playing' && <GameOver game={game} onRestart={newGame} />}
+      {phase === 'morning' && game.status !== 'playing' && (
+        <GameOver game={game} onRestart={newGame} onCalendar={() => setShowCalendar(true)} />
+      )}
     </div>
   );
 }
 
-function Report({ report: r, dayLengthMs, onNext }: { report: DayReport; dayLengthMs: number; onNext: () => void }) {
-  const tooExpensive = (Object.keys(r.tooExpensive) as CustomerTypeId[]).filter((t) => r.tooExpensive[t] > 0);
-  const missed: [string, string, number][] = [
-    ['😠', 'Walked out (waited too long)', r.walkouts],
-    ['🚪', 'No room at the counter', r.noRoom],
-    ['🚫', r.soldOutAtMs === null ? 'Sold out' : `Sold out at ${clock(r.soldOutAtMs, dayLengthMs)}`, r.soldOutMisses],
-    ['🕔', 'Still waiting at 5pm (not held against you)', r.leftAtClose],
-  ];
-  return (
-    <main className="mk-page">
-      <div className="mk-headline">
-        <span className="emoji" aria-hidden>
-          🌙
-        </span>
-        <div>
-          <h2>Day {r.day} is over</h2>
-          <p>
-            Walt said {SKY_EMOJI[r.forecast.sky]} {Math.round(r.forecast.tempF)}° ("{r.forecast.confidence}"). It was{' '}
-            {SKY_EMOJI[r.weather.sky]} {SKY_NAME[r.weather.sky].toLowerCase()}, {Math.round(r.weather.tempF)}°. {r.news.headline}
-          </p>
-        </div>
-      </div>
-
-      <div className="mk-estimate mk-estimate-4">
-        <div>
-          <strong>{money(r.profit)}</strong>
-          <small>profit today</small>
-        </div>
-        <div>
-          <strong>{money(r.cashAfter)}</strong>
-          <small>cash now</small>
-        </div>
-        <div>
-          <strong>{r.glassesSold}</strong>
-          <small>glasses sold at {money(r.price)}</small>
-        </div>
-        <div>
-          <strong>
-            {Math.round(r.popularityBefore)} ➜ {Math.round(r.popularityAfter)}
-          </strong>
-          <small>popularity (service rating {pct(r.serviceRating)})</small>
-        </div>
-      </div>
-
-      <div className="mk-two">
-        <section className="mk-card">
-          <h2 className="mk-section-title">Who came by</h2>
-          <p>
-            {r.passersby} people walked by and <b>{r.stopped}</b> stopped. You served <b>{r.glassesSold}</b>: 🟩{' '}
-            {r.servedByBar.green} green, 🟨 {r.servedByBar.yellow} yellow, 🟥 {r.servedByBar.red} red.
-          </p>
-          <h3 style={{ marginTop: 12 }}>Missed sales</h3>
-          <ul className="mk-plain">
-            <li>
-              💸 Too expensive:{' '}
-              {tooExpensive.length === 0
-                ? 'nobody'
-                : tooExpensive
-                    .map((t) => `${r.tooExpensive[t]} ${CUSTOMER_TYPES[t].label}${r.tooExpensive[t] > 1 ? 's' : ''}`)
-                    .join(', ')}
-            </li>
-            {missed.map(([emoji, label, n]) => (
-              <li key={label}>
-                {emoji} {label}: <b>{n}</b>
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section className="mk-card">
-          <h2 className="mk-section-title">Money and stock</h2>
-          <ul className="mk-plain">
-            <li>Sales: {money(r.revenue)}</li>
-            <li>Tips: {money(r.tips)}</li>
-            <li>Spent this morning: {money(r.spent)}</li>
-            <li>
-              <b>Profit: {money(r.profit)}</b>
-            </li>
-          </ul>
-          <h3 style={{ marginTop: 12 }}>Left for tomorrow</h3>
-          <p>
-            {ITEMS.map((i) => `${ITEM_EMOJI[i]} ${r.inventoryAfter[i]}`).join('   ')}
-            <br />
-            <span className="mk-note">🧊 {r.iceMelted} ice melted overnight.</span>
-            {r.pouredOut > 0 && (
-              <>
-                <br />
-                <span className="mk-note">
-                  🫗 {r.pouredOut} glass{r.pouredOut > 1 ? 'es' : ''} of lemonade left in the jug was poured out (those lemons
-                  and sugar are gone).
-                </span>
-              </>
-            )}
-          </p>
-        </section>
-      </div>
-
-      <div className="mk-go">
-        <button className="mk-btn primary" onClick={onNext}>
-          Next morning
-        </button>
-      </div>
-    </main>
-  );
-}
-
-function GameOver({ game, onRestart }: { game: GameState; onRestart: () => void }) {
+function GameOver({ game, onRestart, onCalendar }: { game: GameState; onRestart: () => void; onCalendar: () => void }) {
   const last = game.history[game.history.length - 1];
   return (
     <main className="mk-page">
@@ -311,6 +237,9 @@ function GameOver({ game, onRestart }: { game: GameState; onRestart: () => void 
         </table>
       </section>
       <div className="mk-go">
+        <button className="mk-btn" onClick={onCalendar}>
+          📅 Calendar
+        </button>
         <button className="mk-btn primary" onClick={onRestart}>
           Play another summer
         </button>
