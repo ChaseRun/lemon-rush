@@ -52,14 +52,14 @@ GameState ──planDay──► DayPlan ──[ autoServe | Rush ]──► Day
 | `src/window/` | The window-style prototype (one customer at a time, Cooking-Mama jug and pour). Same contract, also pure rules + view. |
 | `src/ui/` | React screens: start, morning, rules, report, calendar, game over. They only render state and pass choices to the engine. |
 | `src/shared/` | The pause menu used by both Rush styles. |
-| `docs/` | `GAME_DESIGN.md` (rules), `SYSTEMS.md` (formulas and tuning knobs), `BALANCE.md` (simulator results and play-test changes), `FUTURE.md` (roadmap), `AGENTS.md` (how the work was split). |
+| `docs/` | `GAME_DESIGN.md` (rules), `SYSTEMS.md` (formulas and tuning knobs), `BALANCE.md` (simulator results and play-test changes), `FUTURE.md` (roadmap). |
 
 **Key design decisions**
 - **A day is played by a pluggable *day simulator*** (`DayPlan → DayOutcome`). Auto-serve, the side-view Rush and the window prototype are interchangeable. The economy never knows which one ran, which is how two Rush styles could be built and compared without touching it.
 - **Deterministic and seeded.** Every random number comes from `rngFor(seed, day, purpose)`, a separate stream per day and system. The same seed gives the same summer, so the rules (including full seasons) are testable, and bug reports are reproducible.
 - **Data-driven.** Packs, customer types, sky odds, forecast accuracy, news events, rent and popularity constants live in `config.ts`. The Rules page and price ruler read the same tables, so they can't drift from the real rules.
 - **Rules separate from rendering.** Both Rush styles keep their rules in pure, fuzz-tested state machines. A rendering bug once froze the game, so the view now catches draw errors and the rules keep running.
-- **The contract came first, then parallel agents.** The shared types and a stub engine were written first. Claude agents then worked in parallel, each owning one folder: engine, Rush, roadmap doc, start screen, Rush pixel art, window prototype, balance, mini-games. See `docs/AGENTS.md`.
+- **The contract came first, then parallel agents.** The shared types and a stub engine were written first. Claude agents then worked in parallel, each owning one folder: engine, Rush, roadmap doc, start screen, Rush pixel art, window prototype, balance, mini-games.
 
 ## Data model (short version)
 
