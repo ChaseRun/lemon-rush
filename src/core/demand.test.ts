@@ -47,13 +47,13 @@ describe('demand formulas', () => {
   it('foot traffic = base × temp × sky × news × (1 + popularity × perPoint)', () => {
     const quiet = newsById('quiet');
     const base = DEMAND.baseTraffic;
-    expect(base).toBe(36);
+    expect(base).toBe(72);
     expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, quiet, 0)).toBeCloseTo(base);
-    // Design doc day-1 example: 85°F sunny at popularity 20 → 36 × 1.125 × 1.3 ≈ 53 walk by.
-    expect(expectedFootTraffic({ sky: 'sunny', tempF: 85 }, quiet, 20)).toBeCloseTo(52.65);
+    // Day-1 example: 85°F sunny at popularity 20 → 72 × 1.125 × 1.3 ≈ 105 walk by.
+    expect(expectedFootTraffic({ sky: 'sunny', tempF: 85 }, quiet, 20)).toBeCloseTo(105.3);
     expect(expectedFootTraffic({ sky: 'rain', tempF: 80 }, quiet, 0)).toBeCloseTo(base * SKY_TABLE.rain.traffic);
     expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, newsById('poolClosed'), 0)).toBeCloseTo(base * 1.3);
-    expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, newsById('july4th'), 0)).toBeCloseTo(base * 2);
+    expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, newsById('july4th'), 0)).toBeCloseTo(base * 1.5);
     // Popularity is the main growth lever: +1.5% per point, so a popular stand (80) sees 2.2× the people.
     expect(expectedFootTraffic({ sky: 'sunny', tempF: 80 }, quiet, 80)).toBeCloseTo(base * 2.2);
   });
@@ -206,16 +206,16 @@ describe('generateDemand', () => {
     expect(demand({ seed: 9, day: 12 })).toEqual(demand({ seed: 9, day: 12 }));
   });
 
-  it('matches the design-doc day 1 sanity check: 53 walk by, kids priced out at $2, ~30 stop', () => {
+  it('matches the day 1 sanity check: 105 walk by, kids priced out at $2, ~60 stop', () => {
     let stopped = 0;
     const seeds = 200;
     for (let seed = 1; seed <= seeds; seed++) {
       const d = demand({ seed, day: 1, weather: { sky: 'sunny', tempF: 85 }, popularity: 20, price: 2 });
-      expect(d.passersby).toBe(53);
+      expect(d.passersby).toBe(105);
       expect(d.arrivals.some((a) => a.type === 'kid')).toBe(false);
       stopped += d.arrivals.length;
     }
-    expect(stopped / seeds).toBeGreaterThan(27);
-    expect(stopped / seeds).toBeLessThan(34);
+    expect(stopped / seeds).toBeGreaterThan(54);
+    expect(stopped / seeds).toBeLessThan(68);
   });
 });

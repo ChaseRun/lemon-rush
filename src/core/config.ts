@@ -89,7 +89,7 @@ export const FORECAST_ACCURACY: { skyCorrect: number; tempErrorF: number; confid
 
 export const DEMAND = {
   /** Passersby on an 80°F sunny quiet day at popularity 0. */
-  baseTraffic: 36,
+  baseTraffic: 72, // play-testing: the old 4th-of-July pace (36 × 2) felt best as the everyday pace
   /** tempFactor = tempFactorAt60 + (tempF - 60) * tempFactorPerDegree  → 0.5 at 60°F, 1.5 at 100°F */
   tempFactorAt60: 0.5,
   tempFactorPerDegree: 1 / 40,
@@ -159,7 +159,7 @@ export const JULY_4TH: NewsEvent = {
   id: 'july4th',
   headline: 'Happy 4th of July! The whole town is out.',
   ...NO_EFFECT,
-  trafficMultiplier: 2,
+  trafficMultiplier: 1.5,
   maxPayMultiplier: 1.2,
 };
 
