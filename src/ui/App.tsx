@@ -40,12 +40,15 @@ function clock(ms: number, dayLengthMs: number): string {
 const PRICE_OPTIONS = Array.from({ length: 19 }, (_, i) => 0.5 + i * 0.25); // $0.50 – $5.00
 
 const newSeed = () => Math.floor(Math.random() * 1_000_000);
+/** ?seed=123 replays a specific summer (same weather, news and customers). */
+const urlSeed = Number(new URLSearchParams(location.search).get('seed'));
+const firstSeed = () => (Number.isInteger(urlSeed) && urlSeed > 0 ? urlSeed : newSeed());
 
 const table: React.CSSProperties = { borderCollapse: 'collapse', margin: '8px 0' };
 const cell: React.CSSProperties = { border: '1px solid #ccc', padding: '4px 8px', textAlign: 'left' };
 
 export function App() {
-  const [game, setGame] = useState<GameState>(() => engine.newGame(newSeed()));
+  const [game, setGame] = useState<GameState>(() => engine.newGame(firstSeed()));
   const [phase, setPhase] = useState<Phase>('morning');
   const [plan, setPlan] = useState<DayPlan | null>(null);
   const [report, setReport] = useState<DayReport | null>(null);
