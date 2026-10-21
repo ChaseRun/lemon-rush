@@ -810,3 +810,59 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* ---------- app shell additions ---------- */
+.mk-subnav {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 12px 20px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.mk-link {
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.mk-error {
+  color: var(--melon);
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+.mk-plain {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: grid;
+  gap: 4px;
+}
+.mk-estimate-4 {
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 0;
+}
+.mk-estimate-4 div {
+  background: var(--paper);
+  border: 2px solid var(--line);
+}
+.mk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.mk-table th,
+.mk-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+}
+@media (max-width: 860px) {
+  .mk-estimate-4 {
+    grid-template-columns: 1fr 1fr;
+  }
+}

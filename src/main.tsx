@@ -4,7 +4,6 @@ import type { DayOutcome } from './contract';
 import { fixturePlan } from './fixtures';
 import { RushGame } from './rush';
 import { App } from './ui/App';
-import { Mockup } from './ui/mockup/Mockup';
 import { StartScreen } from './ui/start/StartScreen';
 
 /** Dev page: /?rush=fixture plays the Rush with the fixture plan and logs the outcome. */
@@ -30,9 +29,8 @@ function RushFixturePage() {
 
 const params = new URLSearchParams(location.search);
 const isRushFixture = params.get('rush') === 'fixture';
-const isMockup = params.has('mockup');
 const isStartPreview = params.has('start');
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>{isStartPreview ? <StartScreen onStart={() => console.log('[start] start')} onRules={() => console.log('[start] rules')} /> : isMockup ? <Mockup /> : isRushFixture ? <RushFixturePage /> : <App />}</StrictMode>,
+  <StrictMode>{isStartPreview ? <StartScreen onStart={() => console.log('[start] start')} onRules={() => console.log('[start] rules')} /> : isRushFixture ? <RushFixturePage /> : <App />}</StrictMode>,
 );
