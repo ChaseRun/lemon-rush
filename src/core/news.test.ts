@@ -5,11 +5,11 @@ import { newsPriceMultiplier, rollNews } from './news';
 import { newsById } from './testing';
 
 describe('news', () => {
-  it('day 4 is always the 4th of July: traffic ×2, limits ×1.2', () => {
+  it('day 4 is always the 4th of July: traffic ×1.5, limits ×1.2', () => {
     for (let seed = 1; seed <= 50; seed++) {
       const news = rollNews(seed, JULY_4TH_DAY);
       expect(news.id).toBe('july4th');
-      expect(news.trafficMultiplier).toBe(2);
+      expect(news.trafficMultiplier).toBe(1.5);
       expect(news.maxPayMultiplier).toBe(1.2);
     }
   });
