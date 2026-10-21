@@ -143,7 +143,7 @@ export function App() {
       )}
 
       {phase === 'rush' && plan && (
-        <main className="mk-page">
+        <main className="mk-rush-full" aria-label={`The Rush, day ${plan.day}`}>
           <RushGame plan={plan} onFinish={onRushFinish} />
         </main>
       )}

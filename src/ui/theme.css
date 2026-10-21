@@ -983,3 +983,27 @@
   cursor: not-allowed;
   box-shadow: none;
 }
+
+/* ---------- full-screen Rush ---------- */
+/* The Rush covers the whole viewport; the canvas scales to the largest size that fits (art is 300×140). */
+.mk-rush-full {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--ink);
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  overflow: auto;
+}
+.mk-rush-full .rush {
+  max-width: none;
+  width: min(98vw, calc((100vh - 100px) * 300 / 140));
+}
+.mk-rush-full .rush-help {
+  color: #ffffff;
+  text-align: center;
+}
+.mk-rush-full .pz-toolbar {
+  justify-content: flex-end;
+}
