@@ -866,3 +866,11 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+.mk-style {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.mk-link[aria-pressed='true'] {
+  background: var(--lemon);
+}

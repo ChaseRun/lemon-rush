@@ -6,6 +6,7 @@ import type { CustomerTypeId, DayOutcome, DayPlan, DayReport, GameState, Item } 
 import { ITEMS } from '../contract';
 import { engine } from '../engine';
 import { RushGame } from '../rush';
+import { WindowRush } from '../window';
 import { Morning, TopBar } from './screens/Morning';
 import { Rules } from './screens/Rules';
 import { CUSTOMER_TYPES, ITEM_EMOJI, SKY_EMOJI, SKY_NAME, clock, money, pct } from './screens/shared';
@@ -13,6 +14,15 @@ import { StartScreen } from './start/StartScreen';
 import './theme.css';
 
 type Phase = 'start' | 'morning' | 'rush' | 'report';
+type RushStyle = 'side' | 'window';
+
+function loadRushStyle(): RushStyle {
+  try {
+    return localStorage.getItem('rushStyle') === 'window' ? 'window' : 'side';
+  } catch {
+    return 'side';
+  }
+}
 
 const newSeed = () => Math.floor(Math.random() * 1_000_000);
 /** ?seed=123 replays a specific summer (same weather, news and customers). */
@@ -26,6 +36,15 @@ export function App() {
   const [report, setReport] = useState<DayReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const [rushStyle, setRushStyleState] = useState<RushStyle>(loadRushStyle);
+  const setRushStyle = (s: RushStyle) => {
+    setRushStyleState(s);
+    try {
+      localStorage.setItem('rushStyle', s);
+    } catch {
+      /* storage unavailable: the choice just isn't remembered */
+    }
+  };
   const dayFinished = useRef(false);
 
   const finishDay = (p: DayPlan, outcome: DayOutcome) => {
@@ -98,6 +117,15 @@ export function App() {
         <>
           <div className="mk-subnav">
             <span>Seed {game.seed}</span>
+            <span className="mk-style">
+              Rush style:{' '}
+              <button className="mk-link" aria-pressed={rushStyle === 'side'} onClick={() => setRushStyle('side')}>
+                Side view
+              </button>{' '}
+              <button className="mk-link" aria-pressed={rushStyle === 'window'} onClick={() => setRushStyle('window')}>
+                Window
+              </button>
+            </span>
             <button className="mk-link" onClick={() => setShowRules(true)}>
               📖 Rules
             </button>
@@ -114,7 +142,11 @@ export function App() {
 
       {phase === 'rush' && plan && (
         <main className="mk-page">
-          <RushGame plan={plan} onFinish={onRushFinish} />
+          {rushStyle === 'window' ? (
+            <WindowRush plan={plan} onFinish={onRushFinish} />
+          ) : (
+            <RushGame plan={plan} onFinish={onRushFinish} />
+          )}
         </main>
       )}
 
