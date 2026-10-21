@@ -42,6 +42,15 @@ export const PACKS: Record<Item, { size: number; price: number }[]> = {
   ],
 };
 
+// ---------- Making lemonade ----------
+
+/**
+ * Lemonade is made in jugs. Filling a jug uses 1 lemon + 1 sugar per glass it holds, immediately;
+ * each served glass then uses 1 cup + 1 ice. Whatever is left in the jug at day end is poured out.
+ * (The Rush keeps its own copy in rushConfig.)
+ */
+export const JUG_CAPACITY = 10;
+
 // ---------- Weather ----------
 
 /** temp = base + amplitude * sin(pi * (day - 1) / (SEASON_DAYS - 1)) + uniform(-noise, +noise), clamped. */

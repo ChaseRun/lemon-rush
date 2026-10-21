@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DayOutcome, GameState, ServedRecord } from '../contract';
-import { SEASON_DAYS } from './config';
+import { ITEMS } from '../contract';
+import { JUG_CAPACITY, SEASON_DAYS } from './config';
 import { autoServe, endDay, planDay } from './day';
 import { buy } from './shop';
 import { setPrice } from './state';
@@ -52,13 +53,38 @@ describe('planDay', () => {
   });
 });
 
-describe('autoServe', () => {
-  it('serves everyone on green when stock is plentiful', () => {
+describe('autoServe (jug rule)', () => {
+  it('serves everyone on green when stock is plentiful; the unfinished jug is poured out', () => {
     const o = autoServe(planWith({ count: 5, inventory: stock(20), price: 2 }));
     expect(o.served).toHaveLength(5);
     expect(o.served.every((s) => s.bar === 'green' && s.paid === 2)).toBe(true);
     expect(o.served[0].tip).toBe(0.2); // jogger 10%
-    expect(o).toMatchObject({ walkouts: 0, noRoom: 0, soldOutMisses: 0, soldOutAtMs: null, used: stock(5) });
+    expect(o).toMatchObject({ walkouts: 0, noRoom: 0, soldOutMisses: 0, soldOutAtMs: null, leftAtClose: 0 });
+    // One full jug: 10 lemons + 10 sugar; 5 cups + 5 ice for the glasses actually served.
+    expect(o.used).toEqual({ lemons: 10, sugar: 10, cups: 5, ice: 5 });
+    expect(o.pouredOut).toBe(5);
+  });
+
+  it('uses lemons and sugar in jug-sized chunks, filling a fresh jug only when one is needed', () => {
+    const o = autoServe(planWith({ count: 25, inventory: stock(50) }));
+    expect(o.served).toHaveLength(25);
+    expect(o.used).toEqual({ lemons: 30, sugar: 30, cups: 25, ice: 25 }); // 3 jugs
+    expect(o.pouredOut).toBe(5);
+    // Exactly two jugs' worth of customers: no third jug, nothing wasted.
+    const exact = autoServe(planWith({ count: 20, inventory: stock(50) }));
+    expect(exact.used).toEqual({ lemons: 20, sugar: 20, cups: 20, ice: 20 });
+    expect(exact.pouredOut).toBe(0);
+  });
+
+  it('fills a partial jug when lemons or sugar run short', () => {
+    const inventory = { lemons: 13, sugar: 30, ice: 30, cups: 30 };
+    const plan = planWith({ count: 20, inventory });
+    const o = autoServe(plan);
+    expect(o.served).toHaveLength(13); // a jug of 10, then a jug of 3
+    expect(o.used).toEqual({ lemons: 13, sugar: 13, cups: 13, ice: 13 });
+    expect(o.pouredOut).toBe(0);
+    expect(o.soldOutMisses).toBe(7);
+    expect(o.soldOutAtMs).toBe(plan.arrivals[12].atMs);
   });
 
   it('never sells more than stock allows and counts the rest as sold-out misses', () => {
@@ -69,11 +95,55 @@ describe('autoServe', () => {
     expect(o.soldOutMisses).toBe(6);
     expect(o.soldOutAtMs).toBe(plan.arrivals[3].atMs);
     expect(o.used).toEqual(stock(4));
+    expect(o.pouredOut).toBe(0);
   });
 
-  it('opening with no stock: everyone is a sold-out miss from 9am', () => {
-    const o = autoServe(planWith({ count: 3, inventory: stock(0) }));
-    expect(o).toMatchObject({ served: [], soldOutMisses: 3, soldOutAtMs: 0, used: stock(0) });
+  it('selling out on cups with lemonade left in the jug pours it out', () => {
+    const plan = planWith({ count: 10, inventory: { lemons: 20, sugar: 20, ice: 20, cups: 3 } });
+    const o = autoServe(plan);
+    expect(o.served).toHaveLength(3);
+    expect(o.soldOutMisses).toBe(7);
+    expect(o.soldOutAtMs).toBe(plan.arrivals[2].atMs);
+    expect(o.used).toEqual({ lemons: 10, sugar: 10, cups: 3, ice: 3 });
+    expect(o.pouredOut).toBe(7);
+  });
+
+  it('selling out on ice works the same way', () => {
+    const o = autoServe(planWith({ count: 10, inventory: { lemons: 20, sugar: 20, ice: 4, cups: 20 } }));
+    expect(o.served).toHaveLength(4);
+    expect(o.pouredOut).toBe(6);
+  });
+
+  it('opening unable to make a glass: everyone is a sold-out miss from 9am and nothing is used', () => {
+    for (const inventory of [stock(0), { lemons: 20, sugar: 20, ice: 20, cups: 0 }, { lemons: 0, sugar: 20, ice: 20, cups: 20 }]) {
+      const o = autoServe(planWith({ count: 3, inventory }));
+      expect(o).toMatchObject({ served: [], soldOutMisses: 3, soldOutAtMs: 0, used: stock(0), pouredOut: 0 });
+    }
+  });
+
+  it('a day with no customers fills no jug', () => {
+    const o = autoServe(planWith({ count: 0, inventory: stock(20) }));
+    expect(o).toMatchObject({ served: [], used: stock(0), pouredOut: 0, soldOutAtMs: null });
+  });
+
+  it('accounting always balances: lemons = sugar = filled, cups = ice = served, pouredOut = filled - served', () => {
+    for (let lemons = 0; lemons <= 25; lemons += 3) {
+      for (const cups of [0, 4, 11, 30]) {
+        for (const count of [0, 7, 10, 23]) {
+          const inventory = { lemons, sugar: 30, ice: 30, cups };
+          const o = autoServe(planWith({ count, inventory }));
+          const n = o.served.length;
+          expect(o.used.lemons).toBe(o.used.sugar);
+          expect(o.used.cups).toBe(n);
+          expect(o.used.ice).toBe(n);
+          expect(o.pouredOut).toBe(o.used.lemons - n);
+          expect(o.pouredOut).toBeGreaterThanOrEqual(0);
+          expect(o.pouredOut).toBeLessThan(JUG_CAPACITY);
+          expect(n + o.soldOutMisses).toBe(count);
+          for (const item of ITEMS) expect(o.used[item]).toBeLessThanOrEqual(inventory[item]);
+        }
+      }
+    }
   });
 
   it('tips use each type’s rate', () => {
@@ -104,6 +174,23 @@ describe('endDay', () => {
     expect(next.inventory).toEqual({ lemons: 20, sugar: 10, ice: 0, cups: 8 });
     expect(report.iceMelted).toBe(15);
     expect(report.inventoryAfter).toEqual(next.inventory);
+  });
+
+  it('lemonade left in the jug is poured out: gone from stock and recorded in the report and history', () => {
+    const state = gameWith({ inventory: stock(20), cash: 0 });
+    const plan = { ...planDay(state), arrivals: planWith({ count: 5 }).arrivals };
+    const o = autoServe(plan);
+    const { state: next, report } = endDay(state, plan, o);
+    expect(report.pouredOut).toBe(5);
+    expect(next.history.at(-1)?.pouredOut).toBe(5);
+    expect(report.glassesSold).toBe(5);
+    expect(next.inventory).toEqual({ lemons: 10, sugar: 10, ice: 0, cups: 15 });
+    expect(report.iceMelted).toBe(15);
+  });
+
+  it('copies leftAtClose from the outcome into the report', () => {
+    const { report } = close(gameWith({ inventory: stock(5) }), outcome({ leftAtClose: 2 }));
+    expect(report.leftAtClose).toBe(2);
   });
 
   it('stock never goes negative even if a simulator over-reports usage', () => {

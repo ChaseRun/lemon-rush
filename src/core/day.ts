@@ -1,9 +1,9 @@
 // One day: planDay → (autoServe | Rush) → endDay.
 
 import type { Bar, DayOutcome, DayPlan, DayReport, GameState, GameStatus, ServedRecord } from '../contract';
-import { DAY_LENGTH_MS, SEASON_DAYS, TIP_MULTIPLIER_BY_BAR } from './config';
+import { DAY_LENGTH_MS, JUG_CAPACITY, SEASON_DAYS, TIP_MULTIPLIER_BY_BAR } from './config';
 import { generateDemand } from './demand';
-import { glassesMakeable, glassesWorth, subtractInventory } from './inventory';
+import { subtractInventory } from './inventory';
 import { roundCents, sumCents } from './money';
 import { serviceRating, updatePopularity } from './popularity';
 import { isBankrupt } from './state';
@@ -37,31 +37,56 @@ export function planDay(state: GameState): DayPlan {
 }
 
 /**
- * Perfect play: every arrival is served instantly, on green, in order, while stock can make a glass.
- * Everyone after that is a sold-out miss. soldOutAtMs is when stock hit zero (the last serve,
- * or 0 if the stand opened empty), matching the Rush, which ends the day the moment it sells out.
+ * Perfect play under the jug rule. Arrivals are served instantly, on green, in order:
+ *   - when the jug is empty and a glass is needed, fill it with min(JUG_CAPACITY, lemons, sugar);
+ *     the lemons and sugar are used right away
+ *   - each served glass takes one from the jug plus 1 cup + 1 ice
+ * The stand sells out when it can't produce another glass (jug empty and no lemons/sugar to refill,
+ * or no cups/ice). Everyone after that is a sold-out miss. soldOutAtMs is when that happened (the
+ * last serve, or 0 if the stand opened unable to make a glass), matching the Rush, which ends the
+ * day the moment it sells out. A fresh jug is only filled when a customer needs it, so waste
+ * (pouredOut) can only come from the last jug of the day.
  */
 export function autoServe(plan: DayPlan): DayOutcome {
-  const capacity = glassesMakeable(plan.inventory);
-  const servedArrivals = plan.arrivals.slice(0, capacity);
-  const served: ServedRecord[] = servedArrivals.map((a) => ({
-    arrivalId: a.id,
-    type: a.type,
-    paid: plan.price,
-    tip: roundCents(plan.price * a.tipRate * TIP_MULTIPLIER_BY_BAR.green),
-    bar: 'green',
-    atMs: a.atMs,
-  }));
-  const ranOut = served.length === capacity;
+  const left = { ...plan.inventory };
+  let jug = 0;
+  let filled = 0;
+  const served: ServedRecord[] = [];
+  const canPour = () => left.cups > 0 && left.ice > 0 && (jug > 0 || (left.lemons > 0 && left.sugar > 0));
+
+  let soldOutAtMs: number | null = canPour() ? null : 0;
+  for (const a of plan.arrivals) {
+    if (soldOutAtMs !== null) break;
+    if (jug === 0) {
+      const fill = Math.min(JUG_CAPACITY, left.lemons, left.sugar);
+      left.lemons -= fill;
+      left.sugar -= fill;
+      jug = fill;
+      filled += fill;
+    }
+    jug--;
+    left.cups--;
+    left.ice--;
+    served.push({
+      arrivalId: a.id,
+      type: a.type,
+      paid: plan.price,
+      tip: roundCents(plan.price * a.tipRate * TIP_MULTIPLIER_BY_BAR.green),
+      bar: 'green',
+      atMs: a.atMs,
+    });
+    if (!canPour()) soldOutAtMs = a.atMs;
+  }
+
   return {
     served,
     walkouts: 0,
     noRoom: 0,
     soldOutMisses: plan.arrivals.length - served.length,
-    soldOutAtMs: !ranOut ? null : capacity === 0 ? 0 : served[served.length - 1].atMs,
+    soldOutAtMs,
     leftAtClose: 0,
-    pouredOut: 0,
-    used: glassesWorth(served.length),
+    pouredOut: jug,
+    used: { lemons: filled, sugar: filled, cups: served.length, ice: served.length },
   };
 }
 
@@ -73,7 +98,9 @@ function countByBar(served: readonly ServedRecord[]): Record<Bar, number> {
 
 /**
  * Closes the day:
- *   1. cash += revenue + tips; stock -= used; report.spent = spentToday, then reset it
+ *   1. cash += revenue + tips; stock -= used (lemons + sugar for every jug filled, cups + ice
+ *      per glass served; lemonade left in the jug is already counted in used and is poured out);
+ *      report.spent = spentToday, then reset it
  *   2. melt all ice
  *   3. service rating → 4. popularity
  *   5. history + report

@@ -26,11 +26,12 @@ newGame(seed) ─► GameState ─► buy / setPrice ─► planDay ─► DayPl
 | Limit ("most I'll pay") | `round¢(basePay × (0.8 + 0.4·(T − 60)/40) × U(0.8, 1.2) × news.maxPay)` | `demand.ts`: `rollMaxPay`, `heatBonus` |
 | Stops? | `price ≤ limit`, otherwise `tooExpensive[type]++` | `demand.ts`: `willStop`, `generateDemand` |
 | Arrival times | Stopper i of n arrives at `(i + 0.5)/n × dayLengthMs`. Street-crew extras all arrive at 3/8 of the day (noon) | `demand.ts`: `generateDemand` |
-| Auto-serve | Serve arrivals in order, on green, until `glassesMakeable` runs out. Tip = `price × tipRate`. The rest are sold-out misses | `day.ts`: `autoServe` |
-| Glasses makeable | `min(lemons, sugar, ice, cups)` | `inventory.ts`: `glassesMakeable` |
+| Jug rule | Lemonade is made in jugs of `JUG_CAPACITY` (10). Filling a jug uses `fill` lemons + `fill` sugar **immediately**. Each served glass takes one from the jug plus 1 cup + 1 ice. Lemonade left in the jug at day end is poured out (`pouredOut`) | `day.ts`: `autoServe` (the Rush has its own copy) |
+| Auto-serve | Serve arrivals in order, on green. When the jug is empty and a glass is needed, fill `min(10, lemons, sugar)`. Sold out when the jug is empty and lemons or sugar can't refill it, **or** cups or ice are out; the rest are sold-out misses. Tip = `price × tipRate`. `used` = {lemons, sugar: filled; cups, ice: served}, and `pouredOut = filled − served` | `day.ts`: `autoServe` |
+| Glasses makeable | `min(lemons, sugar, ice, cups)`: the most glasses the stock could sell (a partial jug can always be filled) | `inventory.ts`: `glassesMakeable` |
 | Service rating | Average of green 1, yellow 0.7, red 0.4, no room 0.3, sold out 0.2, walkout 0. If nobody stopped, 0.5 | `popularity.ts`: `serviceRating` |
 | Popularity | `p += (r − 0.5)·20`, then `p += (20 − p)·0.05`, clamped to 0–100 | `popularity.ts`: `updatePopularity` |
-| Night | Cash += revenue + tips, stock −= used, all ice melts, meters update, report, next day, status | `day.ts`: `endDay` |
+| Night | Cash += revenue + tips, stock −= `used` (which already counts the poured-out lemons and sugar), all ice melts, meters update, report (with `pouredOut` and `leftAtClose`), next day, status | `day.ts`: `endDay` |
 | Bankrupt | `glassesMakeable = 0` **and** cash < the sum of the cheapest packs of every missing item at that day's prices | `state.ts`: `isBankrupt`, `restockCost` |
 | Price | Clamped to $0.50–$5.00 and rounded to cents | `state.ts`: `setPrice` |
 
@@ -63,11 +64,13 @@ Money is stored in dollars but rounded to whole cents, and comparisons are made 
 | `POPULARITY.changeScale` | 20 | Popularity swings faster on good and bad days |
 | `POPULARITY.drift` | 0.05 | A stronger pull back to 20. Popularity is harder to bank |
 | `DAY_LENGTH_MS` | 120 000 | A longer Rush. Arrivals spread out, so it's easier |
+| `JUG_CAPACITY` | 10 | Fewer refills in the Rush, but more lemons and sugar poured out at day end |
 
 ## Choices the design doc leaves open
 - **Temperatures are whole degrees.** The Heatwave +10°F is added before clamping, so it can hit the 100°F cap.
-- **`soldOutAtMs` is when stock hit zero**: the time of the last serve, or 0 if the stand opened with nothing to sell. It is set even if nobody was left waiting. This matches the Rush, which ends the day the moment it sells out.
-- **Customers still waiting at 5pm** are not rated. The rating averages only served customers, walkouts, no-room misses and sold-out misses.
+- **`soldOutAtMs` is when the stand could no longer produce a glass**: the time of the last serve, or 0 if the stand opened unable to make one. It is set even if nobody was left waiting. This matches the Rush, which ends the day the moment it sells out.
+- **Customers still waiting at 5pm** (`leftAtClose`) are not rated. The rating averages only served customers, walkouts, no-room misses and sold-out misses.
+- **Auto-serve fills a jug only when a customer needs it**, so waste comes only from the last jug of the day. It fills `min(10, lemons, sugar)` even when cups or ice would run out first; the extra is poured out.
 - **Street-crew workers still check the price.** They count as passersby and can be "too expensive".
 - **Bankruptcy uses tomorrow's prices** (for example, an Ice shortage tomorrow raises the bar). After day 30 the status is `'finished'` even if you couldn't restock.
 - **When the game ends, `day` still advances** (`31` when finished). The day you went under is `history.at(-1).day`.

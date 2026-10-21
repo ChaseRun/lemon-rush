@@ -1,9 +1,9 @@
 // Whole-season tests: a scripted player runs 30 days through the public engine API.
 
 import { describe, expect, it } from 'vitest';
-import type { GameState } from '../contract';
+import type { DayOutcome, GameState } from '../contract';
 import { ITEMS } from '../contract';
-import { SEASON_DAYS } from './config';
+import { JUG_CAPACITY, SEASON_DAYS } from './config';
 import { engine } from './index';
 
 type Strategy = (state: GameState) => GameState;
@@ -23,15 +23,27 @@ const steady =
     return s;
   };
 
-function playSeason(seed: number, strategy: Strategy, onDay?: (s: GameState) => void): GameState {
+function playSeason(seed: number, strategy: Strategy, onDay?: (s: GameState, o: DayOutcome) => void): GameState {
   let state = engine.newGame(seed);
   while (state.status === 'playing') {
     state = strategy(state);
     const plan = engine.planDay(state);
-    state = engine.gameReducer(state, { type: 'finishDay', plan, outcome: engine.autoServe(plan) });
-    onDay?.(state);
+    const outcome = engine.autoServe(plan);
+    state = engine.gameReducer(state, { type: 'finishDay', plan, outcome });
+    onDay?.(state, outcome);
   }
   return state;
+}
+
+/** Jug rule bookkeeping: lemons/sugar per jug filled, cups/ice per glass, the rest poured out. */
+function expectJugAccounting(o: DayOutcome) {
+  const served = o.served.length;
+  expect(o.used.lemons).toBe(o.used.sugar);
+  expect(o.used.cups).toBe(served);
+  expect(o.used.ice).toBe(served);
+  expect(o.pouredOut).toBe(o.used.lemons - served);
+  expect(o.pouredOut).toBeGreaterThanOrEqual(0);
+  expect(o.pouredOut).toBeLessThan(JUG_CAPACITY);
 }
 
 function expectSaneState(s: GameState) {
@@ -52,12 +64,18 @@ describe('a 30-day season', () => {
     expect(a.status).toBe('finished');
     expect(a.day).toBe(SEASON_DAYS + 1);
     expect(a.history).toHaveLength(SEASON_DAYS);
+    // The jug rule is in play: some lemonade gets poured out over a season.
+    expect(a.history.some((r) => r.pouredOut > 0)).toBe(true);
   });
 
   it('never produces negative stock or cash, across many seeds and strategies', () => {
     for (let seed = 1; seed <= 40; seed++) {
       for (const strategy of [steady(10), steady(30), steady(80)]) {
-        const end = playSeason(seed, strategy, expectSaneState);
+        const end = playSeason(seed, strategy, (state, outcome) => {
+          expectSaneState(state);
+          expectJugAccounting(outcome);
+          expect(state.history.at(-1)?.pouredOut).toBe(outcome.pouredOut);
+        });
         expect(['finished', 'bankrupt']).toContain(end.status);
       }
     }
