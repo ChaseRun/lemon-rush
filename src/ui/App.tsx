@@ -58,6 +58,11 @@ export function App() {
   };
 
   const startDay = (mode: 'rush' | 'auto') => {
+    // The buttons are disabled too; this guards any other way of starting a day.
+    if (engine.glassesMakeable(game.inventory) === 0) {
+      setError("You can't open the stand without the makings of at least one glass.");
+      return;
+    }
     const p = engine.planDay(game);
     setPlan(p);
     setError(null);

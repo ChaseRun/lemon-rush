@@ -114,11 +114,17 @@ export function Morning(props: {
       <Store game={game} news={news} onBuy={props.onBuy} error={props.error} />
 
       <div className="mk-go">
-        <p>Your price and stock lock once the stand opens.</p>
-        <button className="mk-btn" onClick={() => props.onStart('auto')}>
+        {canMake === 0 ? (
+          <p className="mk-error" role="status">
+            You can't open yet: a glass needs 1 lemon, 1 sugar, 1 ice and 1 cup. Buy what's missing in the Corner Store.
+          </p>
+        ) : (
+          <p>Your price and stock lock once the stand opens.</p>
+        )}
+        <button className="mk-btn" disabled={canMake === 0} onClick={() => props.onStart('auto')}>
           Auto-serve the day
         </button>
-        <button className="mk-btn primary" onClick={() => props.onStart('rush')}>
+        <button className="mk-btn primary" disabled={canMake === 0} onClick={() => props.onStart('rush')}>
           Open the stand
         </button>
       </div>
