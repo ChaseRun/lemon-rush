@@ -48,6 +48,31 @@ describe('endDayEarly (pause menu: End the day now)', () => {
     expect(o.used.ice).toBe(0);
   });
 
+  it('abandons a jug mid-game cleanly: its lemonade (already made) is poured out', () => {
+    let s = createRush(fixturePlan);
+    s = step(s, 10, { left: false, right: false, space: true }); // starts the jug mini-game
+    s = step(s, 300, NO_INPUT);
+    expect(s.task.kind).toBe('makingJug');
+    const ended = endDayEarly(s);
+    expect(ended.task.kind).toBe('idle');
+    const o = toOutcome(ended);
+    expect(o.pouredOut).toBe(s.jug);
+    expect(o.used).toMatchObject({ lemons: s.jug, sugar: s.jug, cups: 0, ice: 0 });
+    expect(accounted(ended)).toBe(fixturePlan.arrivals.length);
+  });
+
+  it('abandons a pour mid-game cleanly: the glass was never filled, so no cup or ice is used', () => {
+    let s = createRush(fixturePlan);
+    s = step(s, 10, { left: false, right: false, space: true });
+    for (let i = 0; i < 1000 && s.task.kind === 'makingJug'; i++) s = step(s, 50, NO_INPUT); // let the jug time out
+    s = step(s, 400, { left: false, right: false, space: true }); // pouring
+    expect(s.task.kind).toBe('pouring');
+    const o = toOutcome(endDayEarly(s));
+    expect(o.pouredOut).toBe(s.jug);
+    expect(o.used.cups).toBe(0);
+    expect(o.used.ice).toBe(0);
+  });
+
   it('does not change the state it is given, and does nothing once the day is over', () => {
     const s = step(createRush(fixturePlan), 5_000, NO_INPUT);
     const before = JSON.stringify(s);

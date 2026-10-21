@@ -5,7 +5,11 @@
 import type { CustomerTypeId } from '../../contract';
 import { RUSH, RUSH_VIEW } from '../rushConfig';
 import type { RushEvent, RushState } from '../rushRules';
+import { jugPopText, pourPopText } from '../miniGames';
 import { COLORS } from './sprites';
+
+/** Where mini-game grade pops appear (art px): above the prep station, nudged left to stay on screen. */
+const GRADE_X = Math.round(RUSH.prepX / RUSH_VIEW.pixelScale) - 30;
 
 /** Floating text (and coins) in art pixels. */
 export interface Popup {
@@ -15,6 +19,8 @@ export interface Popup {
   y: number;
   ageMs: number;
   coins: boolean;
+  /** Text size in CSS px (default: 16 with coins, 8 without). Mini-game grades pop big. */
+  size?: number;
 }
 
 /** A customer leaving the counter after a serve (happy) or a walkout (angry). */
@@ -97,8 +103,16 @@ function popupFor(e: RushEvent): Popup[] {
       return [{ text: 'GRR!', color: COLORS.melon, x: toArtX(RUSH.spotX[e.spot]), y: 44, ageMs: 0, coins: false }];
     case 'noRoom':
       return [{ text: 'NO ROOM!', color: COLORS.melon, x: 17, y: 68, ageMs: 0, coins: false }];
-    case 'jugFilled':
-      return [{ text: `+${e.glasses}`, color: COLORS.lemon, x: toArtX(RUSH_VIEW.jugX), y: 54, ageMs: 0, coins: false }];
+    case 'jugMade':
+      return [{ text: jugPopText(e.stars), color: e.stars === 1 ? COLORS.melon : COLORS.lemon, x: GRADE_X, y: 40, ageMs: 0, coins: false, size: 16 }];
+    case 'jugDumped':
+      return [{ text: 'JUG DUMPED!', color: COLORS.melon, x: GRADE_X, y: 40, ageMs: 0, coins: false, size: 12 }];
+    case 'beat':
+      return [{ text: e.grade.toUpperCase(), color: e.grade === 'poor' ? COLORS.melon : COLORS.paper, x: GRADE_X, y: 60, ageMs: 0, coins: false }];
+    case 'poured':
+      return [{ text: pourPopText(e.grade), color: e.grade === 'short' ? COLORS.orange : COLORS.lemon, x: GRADE_X, y: 40, ageMs: 0, coins: false, size: 16 }];
+    case 'spilled':
+      return [{ text: pourPopText('spill'), color: COLORS.melon, x: GRADE_X, y: 40, ageMs: 0, coins: false, size: 16 }];
     default:
       return [];
   }

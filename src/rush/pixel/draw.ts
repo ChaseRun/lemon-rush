@@ -15,10 +15,13 @@ import {
   isOver,
   patienceFraction,
   spotInReach,
+  inMiniGame,
+  pourLevel,
   stationTask,
   stockLeft,
   taskProgress,
 } from '../rushRules';
+import { STIR_ORDER, scoopAt } from '../miniGames';
 import { type Fx, LEAVE_MS, toArtX, coinFrameIndex } from './fx';
 import {
   ANGER,
@@ -370,6 +373,7 @@ export function drawFrame(g: Ctx, s: RushState, fx: Fx, layers: Layers) {
   drawCounterTop(g, s, t);
   drawJug(g, s, t);
   drawKid(g, s, fx);
+  drawMiniGame(g, s, t);
   drawBubbles(g, s, t);
   drawWeather(g, s, t);
   drawPopups(g, fx);
@@ -439,7 +443,7 @@ function drawCounterTop(g: Ctx, s: RushState, t: number) {
 
 function drawJug(g: Ctx, s: RushState, t: number) {
   const [jl, jt] = [JUG_LEFT, JUG_TOP];
-  const filling = s.task.kind === 'filling';
+  const filling = s.task.kind === 'makingJug';
   const pouring = s.task.kind === 'pouring';
   const warn = s.jug === 0 && !filling && !isOver(s) && blink(t, 400);
   const line = warn ? C.melon : C.ink;
@@ -459,12 +463,6 @@ function drawJug(g: Ctx, s: RushState, t: number) {
     rect(g, jl + 7, jt + 17 - level, 2, level, C.lemonDeep);
   }
   if (filling) {
-    const left = stockLeft(s);
-    const target = Math.min(RUSH.jugCapacity, Math.max(0, Math.min(left.lemons, left.sugar)));
-    const n = Math.round((taskProgress(s) ?? 0) * target);
-    g.globalAlpha = 0.6;
-    rect(g, jl + 1, jt + 17 - n, 8, n, C.lemon);
-    g.globalAlpha = 1;
     const drop = Math.floor(t / 40) % 8;
     rect(g, jl + 4, jt - 6 + drop, 2, 2, C.lemon);
     rect(g, jl + 2, jt - 10 + ((drop + 4) % 8), 1, 2, C.lemonDeep);
@@ -483,7 +481,7 @@ function drawJug(g: Ctx, s: RushState, t: number) {
 function drawKid(g: Ctx, s: RushState, fx: Fx) {
   const t = fx.animMs;
   const kx = toArtX(s.kidX);
-  const working = s.task.kind === 'filling' || s.task.kind === 'pouring';
+  const working = inMiniGame(s);
   const frame = fx.running && s.task.kind === 'idle' ? (blink(t, 110) ? KID_RUN_A : KID_RUN_B) : KID_IDLE;
   const flip = working ? false : fx.facing < 0;
   const y = KID_FEET - (KID_IDLE.h - 1) - (fx.hopMs > 0 ? 2 : 0) + (working && blink(t, 120) ? 1 : 0);
@@ -567,10 +565,115 @@ function drawPopups(g: Ctx, fx: Fx) {
         blit(g, COIN_FRAMES[coinFrameIndex(p.ageMs, j * 60, COIN_FRAMES.length)], cx, cy);
       }
     }
-    label(g, p.text, p.x, y, p.coins ? 16 : 8, p.color);
+    label(g, p.text, p.x, y, p.size ?? (p.coins ? 16 : 8), p.color, p.size ? 'center' : 'left');
   }
   g.globalAlpha = 1;
 }
+
+// ---------- Mini-game panel (above the kid at the prep station) ----------
+
+const PANEL_W = 84;
+const PANEL_H = 50;
+const PANEL_Y = 20;
+const STIR_LABEL: Record<string, string> = { up: '^', right: '>', down: 'v', left: '<' };
+
+/** The pour / squeeze / sweeten / stir panel. Every index is clamped: a bad frame must never throw. */
+function drawMiniGame(g: Ctx, s: RushState, t: number) {
+  const task = s.task;
+  if (task.kind !== 'pouring' && task.kind !== 'makingJug') return;
+  const px = Math.max(2, Math.min(ART_W - PANEL_W - 2, toArtX(s.kidX) - PANEL_W / 2 - 10));
+  const py = PANEL_Y;
+  rect(g, px - 1, py - 1, PANEL_W + 2, PANEL_H + 2, C.ink);
+  rect(g, px, py, PANEL_W, PANEL_H, C.lemonPale);
+
+  if (task.kind === 'pouring') {
+    // The glass: band lines, rising lemonade, a stream while it flows.
+    const gx = px + 8;
+    const gy = py + 6;
+    const gh = 38;
+    const gw = 16;
+    const fill = Math.max(0, Math.min(1, pourLevel(s) ?? 0));
+    const yAt = (f: number) => gy + gh - Math.round(Math.max(0, Math.min(1, f)) * gh);
+    rect(g, gx - 1, gy, 1, gh + 1, C.ink);
+    rect(g, gx + gw, gy, 1, gh + 1, C.ink);
+    rect(g, gx - 1, gy + gh, gw + 2, 1, C.ink);
+    rect(g, gx, gy, gw, gh, '#e3f6ff');
+    const top = yAt(fill);
+    rect(g, gx, top, gw, gy + gh - top, C.lemon);
+    if (fill > 0) rect(g, gx, top, gw, 1, '#fff1a8');
+    const hi = yAt(task.center + RUSH.pour.bandHalf);
+    const lo = yAt(task.center - RUSH.pour.bandHalf);
+    rect(g, gx - 3, hi, gw + 6, 1, C.melon);
+    rect(g, gx - 3, lo, gw + 6, 1, C.leaf);
+    rect(g, gx + gw + 1, yAt(task.center), 2, 1, C.leafDark);
+    const flowing = task.holdMs > RUSH.pour.tiltMs;
+    if (flowing && (task.dripMs === null || blink(t, 40))) rect(g, gx + gw / 2 - 1, py + 2, 2, Math.max(0, top - py - 2), C.lemonDeep);
+    const tilt = Math.min(1, task.holdMs / Math.max(1, RUSH.pour.tiltMs));
+    label(g, tilt < 1 ? 'TILT...' : task.dripMs === null ? 'POUR!' : 'DRIP', px + 54, py + 12, 8, C.ink, 'center', null);
+    label(g, task.dripMs === null ? 'LET GO' : '', px + 54, py + 24, 8, C.melon, 'center', null);
+    label(g, 'AT THE', px + 54, py + 32, 8, task.dripMs === null ? C.melon : C.lemonPale, 'center', null);
+    label(g, 'LINE!', px + 54, py + 40, 8, task.dripMs === null ? C.melon : C.lemonPale, 'center', null);
+    return;
+  }
+
+  // Jug: three beat dots across the top, then the current beat.
+  const beats = ['squeeze', 'sweeten', 'stir'] as const;
+  beats.forEach((b, i) => {
+    const grade = task.grades[i];
+    const color = grade === 'great' ? C.leaf : grade === 'good' ? C.lemonDeep : grade === 'poor' ? C.melon : b === task.beat ? C.ink : C.grayLight;
+    rect(g, px + 4 + i * 8, py + 3, 6, 4, color);
+  });
+  const windowMs =
+    task.beat === 'squeeze' ? RUSH.jug.squeeze.windowMs : task.beat === 'sweeten' ? RUSH.jug.sweeten.windowMs : RUSH.jug.stir.windowMs;
+  const timeLeft = Math.max(0, Math.min(1, 1 - task.beatMs / Math.max(1, windowMs)));
+  rect(g, px + 30, py + 4, 50, 2, C.grayLight);
+  rect(g, px + 30, py + 4, Math.round(50 * timeLeft), 2, timeLeft < 0.3 ? C.melon : C.leaf);
+
+  if (task.beat === 'squeeze') {
+    label(g, 'SQUEEZE!', px + PANEL_W / 2, py + 14, 8, C.ink, 'center', null);
+    const want = task.lastDir === 'left' ? 'right' : task.lastDir === 'right' ? 'left' : null;
+    label(g, '<', px + 22, py + 26, 16, want !== 'right' && blink(t, 120) ? C.melon : C.gray, 'center', null);
+    label(g, '>', px + PANEL_W - 22, py + 26, 16, want !== 'left' && blink(t, 120) ? C.melon : C.gray, 'center', null);
+    disc(g, px + PANEL_W / 2, py + 26, 6, C.lemon);
+    const frac = Math.max(0, Math.min(1, task.count / Math.max(1, RUSH.jug.squeeze.taps)));
+    rect(g, px + 6, py + 38, PANEL_W - 12, 6, C.ink);
+    rect(g, px + 7, py + 39, Math.round((PANEL_W - 14) * frac), 4, C.lemonDeep);
+    return;
+  }
+
+  if (task.beat === 'sweeten') {
+    label(g, 'SWEETEN: SPACE!', px + PANEL_W / 2, py + 14, 8, C.ink, 'center', null);
+    const tx = px + 6;
+    const tw = PANEL_W - 12;
+    const ty = py + 28;
+    const at = (f: number) => tx + Math.round(Math.max(0, Math.min(1, f)) * tw);
+    rect(g, tx, ty, tw, 6, C.grayLight);
+    const good = RUSH.jug.sweeten.goodTol;
+    const great = RUSH.jug.sweeten.greatTol;
+    rect(g, at(task.sweetSpot - good), ty, at(task.sweetSpot + good) - at(task.sweetSpot - good), 6, C.leafLight);
+    rect(g, at(task.sweetSpot - great), ty, at(task.sweetSpot + great) - at(task.sweetSpot - great), 6, C.leaf);
+    const mx = at(scoopAt(task.beatMs));
+    rect(g, mx - 1, ty - 6, 3, 18, C.ink);
+    rect(g, mx - 3, ty - 9, 7, 4, C.paper);
+    return;
+  }
+
+  // Stir: four keys around a pot; the next one blinks.
+  const stepsDone = Math.max(0, task.count);
+  label(g, `STIR! ${Math.min(stepsDone, RUSH.jug.stir.steps)}/${RUSH.jug.stir.steps}`, px + PANEL_W / 2, py + 13, 8, C.ink, 'center', null);
+  const cx = px + PANEL_W / 2;
+  const cy = py + 32;
+  disc(g, cx, cy, 7, C.lemon);
+  const next = STIR_ORDER[stepsDone % STIR_ORDER.length];
+  const spots: Record<string, [number, number]> = { up: [cx, cy - 12], right: [cx + 16, cy], down: [cx, cy + 12], left: [cx - 16, cy] };
+  for (const key of STIR_ORDER) {
+    const [kx, ky] = spots[key];
+    const on = key === next;
+    rect(g, kx - 4, ky - 4, 9, 9, on && blink(t, 150) ? C.melon : C.ink);
+    label(g, STIR_LABEL[key], kx + 0.5, ky + 0.5, 8, C.paper, 'center', null);
+  }
+}
+
 
 /** "9:00 AM" … "5:00 PM" */
 export function clockLabel(ms: number, dayLengthMs: number): string {
@@ -612,11 +715,11 @@ function drawHud(g: Ctx, s: RushState) {
 /** What the kid is doing, or what to do next. Shown in the bottom strip. */
 export function actionText(s: RushState): string {
   if (s.task.kind === 'serving') return 'Serving...';
-  if (s.task.kind === 'filling') return 'Filling jug...';
-  if (s.task.kind === 'pouring') return 'Pouring...';
+  if (s.task.kind === 'makingJug') return 'Making lemonade! (hold < or > to give up)';
+  if (s.task.kind === 'pouring') return 'Pour to the line, then let go!';
   const station = stationTask(s);
   if (s.holdingGlass) return 'Got a glass: serve a customer!';
-  if (s.jug === 0) return station === 'filling' ? 'Jug empty: hold Space at the station' : 'Out of lemons or sugar';
+  if (s.jug === 0) return station === 'makingJug' ? 'Jug empty: hold Space at the station' : 'Out of lemons or sugar';
   return station === 'pouring' ? 'Hold Space at the station to pour' : 'Out of cups or ice';
 }
 
