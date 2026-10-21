@@ -19,8 +19,8 @@ export const RUSH = {
   reachPx: 40,
 
   // ---- Timing ----
-  /** 0.5 px/ms: about 0.7s from the prep station to the nearest spot, 1.3s to the far one. */
-  kidSpeedPxPerMs: 0.5,
+  /** 0.25 px/ms (slowed after play-testing): about 1.4s from the prep station to the nearest spot, 2.6s to the far one. */
+  kidSpeedPxPerMs: 0.25,
   /** Glasses of lemonade a full jug holds. The jug starts the day empty. */
   jugCapacity: 10,
   /** Serve lock: no other action while a serve completes. */

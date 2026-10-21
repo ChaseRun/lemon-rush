@@ -452,7 +452,8 @@ describe('the jug mini-game (squeeze → sweeten → stir)', () => {
   });
 
   it('must be refilled after jugCapacity pours, which works even with a glass in hand', () => {
-    const arrivals = Array.from({ length: 11 }, (_, i) => arrival(i, i * 3_000, { patienceMs: 1_000_000 }));
+    // Spaced so the counter never overflows at any walking speed (this test is about the jug, not crowding).
+    const arrivals = Array.from({ length: 11 }, (_, i) => arrival(i, i * 8_000, { patienceMs: 1_000_000 }));
     let s = createRush(makePlan(arrivals, { inventory: stock(25), dayLengthMs: 300_000 }));
     for (let poured = 1; poured <= RUSH.jugCapacity; poured++) {
       s = makeGlass(s); // makes a jug only the first time
@@ -674,8 +675,8 @@ describe('serving', () => {
   });
 
   it('a customer being served cannot walk out, even with almost no patience left', () => {
-    let s = makeGlass(createRush(makePlan([arrival(0, 0, { patienceMs: 3_500 })]))); // t = 2300
-    s = walkTo(s, RUSH.spotX[0]); // t = 3020: 480ms of patience left
+    let s = makeGlass(createRush(makePlan([arrival(0, 0, { patienceMs: 2_300 + (RUSH.prepX - RUSH.spotX[0]) / RUSH.kidSpeedPxPerMs + 480 })]))); // t = 2300
+    s = walkTo(s, RUSH.spotX[0]); // 480ms of patience left on arrival
     s = serve(s, 0);
     expect(s.walkouts).toBe(0);
     expect(s.served[0].bar).toBe('red');

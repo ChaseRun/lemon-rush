@@ -217,12 +217,14 @@ export function Rules({ onBack, backLabel }: { onBack: () => void; backLabel: st
                   <b>← / →</b> (or A / D) to run along the counter.
                 </li>
                 <li>
-                  <b>Hold Space</b> at the 🍋 station to fill the jug ({secs(RUSH.fillJugMs)}). A jug holds {RUSH.jugCapacity}{' '}
-                  glasses and uses 1 lemon + 1 sugar per glass <b>as soon as you fill it</b>.
+                  <b>Make a jug</b> (hold Space at the 🍋 station when the jug is empty): <b>squeeze</b> (alternate ← →),{' '}
+                  <b>sweeten</b> (tap Space on the sweet spot), <b>stir</b> (↑ → ↓ ←, twice round). Better jugs tip more: ★★★ ×
+                  {RUSH.jugTip[3]}, ★★ ×{RUSH.jugTip[2]}, ★ ×{RUSH.jugTip[1]}. A jug holds {RUSH.jugCapacity} glasses and uses 1
+                  lemon + 1 sugar per glass as soon as you start it.
                 </li>
                 <li>
-                  Keep holding to pour a glass ({secs(RUSH.pourMs)}). Each glass takes 1 ice + 1 cup, used when the customer
-                  gets it.
+                  <b>Pour a glass</b>: hold Space and let go at the line. PERFECT ×{RUSH.pourTip.perfect}, GOOD ×{RUSH.pourTip.good},
+                  SHORT ×{RUSH.pourTip.short}; overflowing spills the glass (its cup + ice are lost). Each glass takes 1 ice + 1 cup.
                 </li>
                 <li>
                   <b>Press Space</b> at a customer to hand it over ({secs(RUSH.serveMs)}).
