@@ -86,7 +86,7 @@ export function Report({
           <ul className="mk-plain">
             <li>Sales: {money(r.revenue)}</li>
             <li>Tips: {money(r.tips)}</li>
-            <li>Spent this morning: {money(r.spent)}</li>
+            <li>Spent: {money(r.spent)} (supplies + Mom's table rent)</li>
             <li>
               <b>Profit: {money(r.profit)}</b>
             </li>

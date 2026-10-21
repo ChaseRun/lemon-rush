@@ -3,12 +3,15 @@
 
 import type { Sky } from '../../contract';
 import { SKY_LADDER } from '../../contract';
-import { config, heatBonus, temperatureFactor } from '../../core';
+import { config, heatBonus, maxPayRange, popularityPayFactor, temperatureFactor } from '../../core';
 import { RUSH } from '../../rush/rushConfig';
 import { CUSTOMER_TYPES, DEMAND, NEWS_EMOJI, SKY_EMOJI, SKY_NAME, TYPE_COLOR, TYPES, describeNews, money, pct, times } from './shared';
 
-const { FORECAST_ACCURACY, JULY_4TH, JULY_4TH_DAY, NEWS_TABLE, POPULARITY, SEASON_LENGTHS, SERVICE_WEIGHTS, SKY_TABLE, START_CASH } =
+const { DAILY_COST, FORECAST_ACCURACY, JULY_4TH, JULY_4TH_DAY, NEWS_TABLE, POPULARITY, SEASON_LENGTHS, SERVICE_WEIGHTS, SKY_TABLE, START_CASH, START_POPULARITY } =
   config;
+
+/** A no-effect headline, for showing typical numbers. */
+const QUIET_NEWS = NEWS_TABLE.find((n) => n.event.id === 'quiet')!.event;
 
 const SKY_FILL: Record<Sky, string> = {
   sunny: '#ffd43b',
@@ -57,8 +60,9 @@ export function Rules({ onBack, backLabel }: { onBack: () => void; backLabel: st
             Whatever cash you have after the last day is your score. Every number on this page is the one the game uses.
           </p>
           <p className="mk-note" style={{ marginTop: 8 }}>
-            You go bankrupt if, after the ice melts at night, you can't make a glass and can't afford the cheapest pack of
-            what's missing. Leftover stock is worth nothing at the end.
+            {DAILY_COST.label} is {money(DAILY_COST.amount)} every night, open or not. You go bankrupt if, after the ice
+            melts at night, you can't make a glass and can't afford the cheapest pack of what's missing. Leftover stock is
+            worth nothing at the end.
           </p>
         </section>
 
@@ -175,7 +179,7 @@ export function Rules({ onBack, backLabel }: { onBack: () => void; backLabel: st
           <div className="mk-people">
             {TYPES.map((t) => {
               const c = CUSTOMER_TYPES[t];
-              const at80 = c.basePay * heatBonus(80);
+              const range = maxPayRange(t, 80, QUIET_NEWS, START_POPULARITY);
               return (
                 <article className="mk-person" key={t} style={{ ['--c' as string]: TYPE_COLOR[t] }}>
                   <span className="emoji" aria-hidden>
@@ -185,7 +189,7 @@ export function Rules({ onBack, backLabel }: { onBack: () => void; backLabel: st
                   <span className="mk-note">{pct(c.share)} of passersby</span>
                   <div className="mk-stat">
                     <span>
-                      Pays up to {money(at80 * (1 - DEMAND.maxPayJitter))}–{money(at80 * (1 + DEMAND.maxPayJitter))} at 80°F
+                      Pays up to {money(range.lo)}–{money(range.hi)} at 80°F (new stand)
                     </span>
                   </div>
                   <div className="mk-stat">
@@ -291,7 +295,9 @@ export function Rules({ onBack, backLabel }: { onBack: () => void; backLabel: st
             <p className="mk-note" style={{ marginTop: 12 }}>
               Your service rating is the average over everyone who stopped. Popularity moves by (rating − 50%) ×{' '}
               {POPULARITY.changeScale} each night, then drifts {pct(POPULARITY.drift)} back toward {POPULARITY.anchor}. Each
-              point adds {pct(DEMAND.popularityTrafficPerPoint)} more foot traffic. Pricing so low that you can't keep up costs
+              point adds {pct(DEMAND.popularityTrafficPerPoint)} more foot traffic, and popular stands can charge more: what people
+              will pay is ×{popularityPayFactor(0).toFixed(2)} at popularity 0, ×{popularityPayFactor(50).toFixed(2)} at 50 and ×
+              {popularityPayFactor(100).toFixed(2)} at 100. Pricing so low that you can't keep up costs
               you customers tomorrow.
             </p>
           </div>

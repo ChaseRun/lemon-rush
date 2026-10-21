@@ -1,7 +1,7 @@
 // Display helpers shared by the screens: labels, emoji, formatting, and "who will pay what" math.
 
 import type { CustomerTypeId, Item, NewsEvent, Sky } from '../../contract';
-import { config, heatBonus } from '../../core';
+import { config, maxPayRange, stopChance } from '../../core';
 
 export const { CUSTOMER_TYPES, DEMAND } = config;
 export const TYPES = Object.keys(CUSTOMER_TYPES) as CustomerTypeId[];
@@ -44,13 +44,13 @@ export function clock(ms: number, dayLengthMs: number): string {
   return `${h24 > 12 ? h24 - 12 : h24}:${String(m).padStart(2, '0')}${h24 >= 12 ? 'pm' : 'am'}`;
 }
 
-/** A customer type's range of "most I'll pay" at a temperature, and the share who stop at `price`. */
-export function willingness(type: CustomerTypeId, tempF: number, news: NewsEvent, price: number) {
-  const mid = CUSTOMER_TYPES[type].basePay * heatBonus(tempF) * news.maxPayMultiplier;
-  const lo = mid * (1 - DEMAND.maxPayJitter);
-  const hi = mid * (1 + DEMAND.maxPayJitter);
-  const stop = Math.min(1, Math.max(0, (hi - price) / (hi - lo)));
-  return { lo, hi, stop };
+/**
+ * A customer type's range of "most I'll pay" (temperature, news and the stand's popularity included) and the
+ * share who stop at `price`. Straight from the engine's demand model, so the price ruler matches the game.
+ */
+export function willingness(type: CustomerTypeId, tempF: number, news: NewsEvent, popularity: number, price: number) {
+  const { lo, hi } = maxPayRange(type, tempF, news, popularity);
+  return { lo, hi, stop: stopChance(type, tempF, news, popularity, price) };
 }
 
 export function describeNews(e: NewsEvent): string[] {

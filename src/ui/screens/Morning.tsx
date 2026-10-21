@@ -2,7 +2,7 @@
 
 import type { ForecastDay, GameState, Item, NewsEvent } from '../../contract';
 import { ITEMS } from '../../contract';
-import { config, engine, expectedFootTraffic, heatBonus, temperatureFactor } from '../../core';
+import { config, engine, expectedFootTraffic, expectedStoppers, heatBonus, temperatureFactor } from '../../core';
 import {
   CUSTOMER_TYPES,
   ITEM_EMOJI,
@@ -19,7 +19,7 @@ import {
   willingness,
 } from './shared';
 
-const { FORECAST_ACCURACY, JULY_4TH_DAY, PRICE_MAX, PRICE_MIN, SKY_TABLE } = config;
+const { DAILY_COST, FORECAST_ACCURACY, JULY_4TH_DAY, PRICE_MAX, PRICE_MIN, SKY_TABLE } = config;
 
 export function TopBar({ game }: { game: GameState }) {
   const seasonDays = game.seasonDays;
@@ -194,12 +194,10 @@ function PriceRuler(props: {
   const { game, today, news, canMake } = props;
   const price = game.price;
   const at = (v: number) => `${(Math.min(v, PRICE_MAX) / PRICE_MAX) * 100}%`;
-  const rows = TYPES.map((t) => ({ t, ...willingness(t, today.tempF, news, price) }));
+  const rows = TYPES.map((t) => ({ t, ...willingness(t, today.tempF, news, game.popularity, price) }));
   const walkBy = expectedFootTraffic(today, news, game.popularity);
   const extra = news.extraArrivals;
-  const stopping =
-    walkBy * rows.reduce((s, r) => s + CUSTOMER_TYPES[r.t].share * r.stop, 0) +
-    (extra ? extra.count * willingness(extra.type, today.tempF, news, price).stop : 0);
+  const stopping = expectedStoppers(today, news, game.popularity, price);
   const listing = engine.shopListing(game);
   const unit = (item: Item, idx: number) => listing[item][idx].price / listing[item][idx].size;
   const costLarge = ITEMS.reduce((s, i) => s + unit(i, 2), 0);
@@ -275,7 +273,8 @@ function PriceRuler(props: {
       </div>
       <p className="mk-note" style={{ marginTop: 12 }}>
         A glass costs {money(costLarge)}–{money(costSmall)} depending on pack size, so you keep {money(price - costSmall)}–
-        {money(price - costLarge)} each. Serving fast earns tips on top.
+        {money(price - costLarge)} each. Serving fast earns tips on top. {DAILY_COST.label}: {money(DAILY_COST.amount)} every
+        night, open or not. Popular stands can charge more.
       </p>
     </section>
   );
