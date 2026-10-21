@@ -7,7 +7,7 @@ import { config, heatBonus, temperatureFactor } from '../../core';
 import { RUSH } from '../../rush/rushConfig';
 import { CUSTOMER_TYPES, DEMAND, NEWS_EMOJI, SKY_EMOJI, SKY_NAME, TYPE_COLOR, TYPES, describeNews, money, pct, times } from './shared';
 
-const { FORECAST_ACCURACY, JULY_4TH, JULY_4TH_DAY, NEWS_TABLE, POPULARITY, SEASON_DAYS, SERVICE_WEIGHTS, SKY_TABLE, START_CASH } =
+const { FORECAST_ACCURACY, JULY_4TH, JULY_4TH_DAY, NEWS_TABLE, POPULARITY, SEASON_LENGTHS, SERVICE_WEIGHTS, SKY_TABLE, START_CASH } =
   config;
 
 const SKY_FILL: Record<Sky, string> = {
@@ -53,8 +53,8 @@ export function Rules({ onBack, backLabel }: { onBack: () => void; backLabel: st
         <section id="goal">
           <h2>Rules</h2>
           <p className="mk-about-intro">
-            You have {money(START_CASH)} and {SEASON_DAYS} days of summer. Whatever cash you have at the end of day{' '}
-            {SEASON_DAYS} is your score. Every number on this page is the one the game uses.
+            You have {money(START_CASH)} and a summer of {SEASON_LENGTHS.join(' or ')} days (you pick on the start screen).
+            Whatever cash you have after the last day is your score. Every number on this page is the one the game uses.
           </p>
           <p className="mk-note" style={{ marginTop: 8 }}>
             You go bankrupt if, after the ice melts at night, you can't make a glass and can't afford the cheapest pack of

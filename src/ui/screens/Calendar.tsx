@@ -7,7 +7,7 @@ import { config } from '../../core';
 import { Report } from './Report';
 import { SKY_EMOJI, money } from './shared';
 
-const { SEASON_DAYS, JULY_4TH_DAY, DAY_LENGTH_MS } = config;
+const { JULY_4TH_DAY, DAY_LENGTH_MS } = config;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 /** The summer runs July 1–30. Weekday layout follows July 2026. */
 const FIRST_WEEKDAY = new Date(2026, 6, 1).getDay();
@@ -48,7 +48,7 @@ export function Calendar({ game, onBack }: { game: GameState; onBack: () => void
           <small>{best ? `best day: ${money(best.profit)}` : 'best day'}</small>
         </div>
         <div>
-          <strong>{Math.max(0, SEASON_DAYS - game.history.length)}</strong>
+          <strong>{Math.max(0, game.seasonDays - game.history.length)}</strong>
           <small>days of summer left</small>
         </div>
       </div>
@@ -62,7 +62,7 @@ export function Calendar({ game, onBack }: { game: GameState; onBack: () => void
         {Array.from({ length: FIRST_WEEKDAY }, (_, i) => (
           <div key={`pad-${i}`} className="mk-cal-pad" aria-hidden />
         ))}
-        {Array.from({ length: SEASON_DAYS }, (_, i) => {
+        {Array.from({ length: game.seasonDays }, (_, i) => {
           const day = i + 1;
           const r = byDay.get(day);
           const f = forecastByDay.get(day);

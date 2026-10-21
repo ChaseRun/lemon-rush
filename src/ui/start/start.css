@@ -260,3 +260,38 @@ body:has(> #root > .st) {
     visibility: visible;
   }
 }
+
+/* ---------- summer length picker ---------- */
+.st-length {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 2px 0 6px;
+}
+.st-length-btn {
+  appearance: none;
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+  padding: 10px 14px;
+  border: 3px solid var(--st-ink);
+  border-radius: 0;
+  background: var(--st-paper);
+  color: var(--st-ink);
+  font-family: 'Press Start 2P', ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--st-ink);
+}
+.st-length-btn small {
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-size: 13px;
+}
+.st-length-btn[aria-pressed='true'] {
+  background: var(--st-lemon);
+}
+.st-length-btn:focus-visible {
+  outline: 4px solid var(--st-ink);
+  outline-offset: 4px;
+}

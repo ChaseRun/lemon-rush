@@ -11,7 +11,7 @@ import { newGame, setPrice } from './state';
  * is not for today (e.g. a duplicate dispatch from a double-fired callback).
  */
 export function gameReducer(state: GameState, action: GameAction): GameState {
-  if (action.type === 'newGame') return newGame(action.seed);
+  if (action.type === 'newGame') return newGame(action.seed, action.seasonDays);
   if (state.status !== 'playing') return state;
   switch (action.type) {
     case 'buy': {

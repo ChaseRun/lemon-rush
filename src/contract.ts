@@ -71,8 +71,10 @@ export type GameStatus = 'playing' | 'bankrupt' | 'finished';
 
 export interface GameState {
   seed: number;
-  /** 1-based; the season ends after SEASON_DAYS. */
+  /** 1-based; the season ends after `seasonDays`. */
   day: number;
+  /** How many days this summer lasts (chosen on the start screen: 7 or 30). */
+  seasonDays: number;
   /** Dollars, rounded to cents. Never negative. */
   cash: number;
   inventory: Inventory;
@@ -200,14 +202,15 @@ export interface DayReport {
 export type BuyResult = { ok: true; state: GameState } | { ok: false; error: string };
 
 export type GameAction =
-  | { type: 'newGame'; seed: number }
+  | { type: 'newGame'; seed: number; seasonDays?: number }
   | { type: 'buy'; item: Item; packIdx: number }
   | { type: 'setPrice'; price: number }
   | { type: 'finishDay'; plan: DayPlan; outcome: DayOutcome };
 
 /** Implemented by src/core (exported as `engine`) and stubbed by src/fixtures.ts. */
 export interface Engine {
-  newGame(seed: number): GameState;
+  /** seasonDays defaults to the standard 30-day summer. */
+  newGame(seed: number, seasonDays?: number): GameState;
   /** Packs on sale today for every item, with news price modifiers applied. */
   shopListing(state: GameState): Record<Item, Pack[]>;
   /** Never throws; rejects if cash is insufficient or the pack doesn't exist. */

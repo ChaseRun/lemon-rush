@@ -10,19 +10,21 @@ import { cheapestPack } from './shop';
 import { forecast, rollWeather } from './weather';
 
 /** Pre-rolls every day's news, then the weather (which needs the news for Heatwave). */
-export function rollSeason(seed: number): { news: NewsEvent[]; weather: Weather[] } {
-  const days = Array.from({ length: SEASON_DAYS }, (_, i) => i + 1);
+export function rollSeason(seed: number, seasonDays: number = SEASON_DAYS): { news: NewsEvent[]; weather: Weather[] } {
+  const days = Array.from({ length: seasonDays }, (_, i) => i + 1);
   const news = days.map((day) => rollNews(seed, day));
-  const weather = days.map((day, i) => rollWeather(seed, day, news[i]));
+  const weather = days.map((day, i) => rollWeather(seed, day, news[i], seasonDays));
   return { news, weather };
 }
 
 /** $20, empty stock, popularity 20, morning of day 1. The whole season's weather and news are fixed by the seed. */
-export function newGame(seed: number): GameState {
-  const { news, weather } = rollSeason(seed);
+export function newGame(seed: number, seasonDays: number = SEASON_DAYS): GameState {
+  const days = Number.isInteger(seasonDays) && seasonDays >= 1 ? seasonDays : SEASON_DAYS;
+  const { news, weather } = rollSeason(seed, days);
   const state: GameState = {
     seed,
     day: 1,
+    seasonDays: days,
     cash: START_CASH,
     inventory: emptyInventory(),
     popularity: START_POPULARITY,

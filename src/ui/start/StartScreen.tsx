@@ -1,13 +1,20 @@
 // Pixel-art title screen. All art is drawn in code: sprites are pixel maps (sprites.ts) turned into
 // SVG <rect>s (pixels.ts), and the street scene is laid out in scene.ts. No image files.
-import { useEffect, useRef, type CSSProperties, type JSX } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type JSX } from 'react';
 import { mapToRects, mapWidth, PALETTE, type PixelMap, type Rect } from './pixels';
 import { GROUND, SCENE, SCENE_H, SCENE_W } from './scene';
 import { CLOUD_BIG, CLOUD_SMALL, SUN } from './sprites';
 import './start.css';
 
+/** Summer lengths offered on the start screen. 7 is a quick game (and handy for testing). */
+export const SUMMER_LENGTHS = [
+  { days: 7, label: 'Quick week', detail: '7 days' },
+  { days: 30, label: 'Full summer', detail: '30 days' },
+] as const;
+
 export interface StartScreenProps {
-  onStart: () => void;
+  /** Called with the chosen summer length in days. */
+  onStart: (seasonDays: number) => void;
   onRules: () => void;
 }
 
@@ -68,7 +75,8 @@ function useEnterToStart(onStart: () => void) {
 }
 
 export function StartScreen({ onStart, onRules }: StartScreenProps): JSX.Element {
-  useEnterToStart(onStart);
+  const [days, setDays] = useState<number>(30);
+  useEnterToStart(() => onStart(days));
 
   return (
     <section className="st" aria-labelledby="st-title">
@@ -82,9 +90,23 @@ export function StartScreen({ onStart, onRules }: StartScreenProps): JSX.Element
           <span className="st-title-line st-title-lemon">Lemon</span>{' '}
           <span className="st-title-line st-title-rush">Rush</span>
         </h1>
-        <p className="st-sub">30 days of summer. $20. One lemonade stand.</p>
+        <p className="st-sub">{days} days of summer. $20. One lemonade stand.</p>
+        <div className="st-length" role="group" aria-label="Summer length">
+          {SUMMER_LENGTHS.map((o) => (
+            <button
+              key={o.days}
+              type="button"
+              className="st-length-btn"
+              aria-pressed={days === o.days}
+              onClick={() => setDays(o.days)}
+            >
+              {o.label}
+              <small>{o.detail}</small>
+            </button>
+          ))}
+        </div>
         <div className="st-actions">
-          <button type="button" className="st-btn st-btn-primary" onClick={onStart}>
+          <button type="button" className="st-btn st-btn-primary" onClick={() => onStart(days)}>
             Start summer
           </button>
           <button type="button" className="st-btn st-btn-secondary" onClick={onRules}>

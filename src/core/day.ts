@@ -1,7 +1,7 @@
 // One day: planDay → (autoServe | Rush) → endDay.
 
 import type { Bar, DayOutcome, DayPlan, DayReport, GameState, GameStatus, ServedRecord } from '../contract';
-import { DAY_LENGTH_MS, JUG_CAPACITY, SEASON_DAYS, TIP_MULTIPLIER_BY_BAR } from './config';
+import { DAY_LENGTH_MS, JUG_CAPACITY, TIP_MULTIPLIER_BY_BAR } from './config';
 import { generateDemand } from './demand';
 import { subtractInventory } from './inventory';
 import { roundCents, sumCents } from './money';
@@ -170,6 +170,6 @@ export function endDay(state: GameState, plan: DayPlan, outcome: DayOutcome): { 
   next.forecast = forecast(next);
 
   // 7. Season end wins over bankruptcy: after day 30 there is no tomorrow to restock for.
-  const status: GameStatus = next.day > SEASON_DAYS ? 'finished' : isBankrupt(next) ? 'bankrupt' : 'playing';
+  const status: GameStatus = next.day > state.seasonDays ? 'finished' : isBankrupt(next) ? 'bankrupt' : 'playing';
   return { state: { ...next, status }, report };
 }

@@ -81,12 +81,13 @@ export function App() {
     [plan, game],
   );
 
+  /** Back to the start screen with a fresh seed, so the player can pick a summer length again. */
   const newGame = () => {
     setGame(engine.newGame(newSeed()));
     setPlan(null);
     setReport(null);
     setError(null);
-    setPhase('morning');
+    setPhase('start');
   };
 
   const buy = (item: Item, packIdx: number) => {
@@ -118,7 +119,15 @@ export function App() {
   }
 
   if (phase === 'start') {
-    return <StartScreen onStart={() => setPhase('morning')} onRules={() => setShowRules(true)} />;
+    return (
+      <StartScreen
+        onStart={(seasonDays) => {
+          setGame(engine.newGame(game.seed, seasonDays));
+          setPhase('morning');
+        }}
+        onRules={() => setShowRules(true)}
+      />
+    );
   }
 
   return (

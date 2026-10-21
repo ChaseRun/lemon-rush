@@ -19,17 +19,18 @@ import {
   willingness,
 } from './shared';
 
-const { FORECAST_ACCURACY, JULY_4TH_DAY, PRICE_MAX, PRICE_MIN, SEASON_DAYS, SKY_TABLE } = config;
+const { FORECAST_ACCURACY, JULY_4TH_DAY, PRICE_MAX, PRICE_MIN, SKY_TABLE } = config;
 
 export function TopBar({ game }: { game: GameState }) {
-  const day = Math.min(game.day, SEASON_DAYS);
+  const seasonDays = game.seasonDays;
+  const day = Math.min(game.day, seasonDays);
   return (
     <header className="mk-top">
       <div className="mk-top-inner">
         <div className="mk-logo">🍋 Lemon Rush</div>
         <div className="mk-summer">
           <span className="mk-summer-label">
-            Day {day} of {SEASON_DAYS}
+            Day {day} of {seasonDays}
             {game.day < JULY_4TH_DAY && (
               <small className="mk-holiday-note">
                 🎆 <span className="mk-holiday-dot" aria-hidden /> Day {JULY_4TH_DAY} is the 4th of July: twice the customers
@@ -37,8 +38,8 @@ export function TopBar({ game }: { game: GameState }) {
             )}
             {game.day === JULY_4TH_DAY && <small className="mk-holiday-note">🎆 Today is the 4th of July!</small>}
           </span>
-          <div className="mk-days" aria-hidden>
-            {Array.from({ length: SEASON_DAYS }, (_, i) => {
+          <div className="mk-days" aria-hidden style={{ gridTemplateColumns: `repeat(${seasonDays}, 1fr)` }}>
+            {Array.from({ length: seasonDays }, (_, i) => {
               const d = i + 1;
               const cls = [d < game.day ? 'done' : '', d === game.day ? 'today' : '', d === JULY_4TH_DAY ? 'holiday' : '']
                 .filter(Boolean)

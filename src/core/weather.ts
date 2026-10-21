@@ -10,8 +10,8 @@ import { clamp } from './money';
 import { rngFor } from './rng';
 
 /** Seasonal curve without noise: 78°F on day 1, peaking at 88°F mid-month, back to 78°F on day 30. */
-export function seasonalBaseTempF(day: number): number {
-  const phase = (Math.PI * (day - 1)) / (SEASON_DAYS - 1);
+export function seasonalBaseTempF(day: number, seasonDays: number = SEASON_DAYS): number {
+  const phase = seasonDays > 1 ? (Math.PI * (day - 1)) / (seasonDays - 1) : Math.PI / 2;
   return TEMPERATURE.base + TEMPERATURE.amplitude * Math.sin(phase);
 }
 
@@ -27,9 +27,9 @@ export function rollSky(seed: number, day: number): Sky {
  * The day's real weather. News temperature effects (Heatwave +10°F) are baked in here,
  * so the forecast, demand and report all see the same number. Whole degrees, 60–100°F.
  */
-export function rollWeather(seed: number, day: number, news: NewsEvent): Weather {
+export function rollWeather(seed: number, day: number, news: NewsEvent, seasonDays: number = SEASON_DAYS): Weather {
   const noise = rngFor(seed, day, 'temp').float(-TEMPERATURE.noise, TEMPERATURE.noise);
-  const tempF = clampTempF(Math.round(seasonalBaseTempF(day) + noise + news.tempBonusF));
+  const tempF = clampTempF(Math.round(seasonalBaseTempF(day, seasonDays) + noise + news.tempBonusF));
   return { sky: rollSky(seed, day), tempF };
 }
 
@@ -61,7 +61,7 @@ export function forecast(state: Pick<GameState, 'seed' | 'day' | 'weather'>): Fo
   for (let lead = 0; lead < FORECAST_ACCURACY.length; lead++) {
     const day = state.day + lead;
     const actual = state.weather[day - 1];
-    if (day > SEASON_DAYS || !actual) break;
+    if (!actual) break; // past the end of this season
     days.push(forecastDay(state.seed, day, lead, actual));
   }
   return days;

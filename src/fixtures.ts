@@ -49,6 +49,7 @@ function forecastFor(day: number): ForecastDay[] {
 export const fixtureState: GameState = {
   seed: 1,
   day: 1,
+  seasonDays: 30,
   cash: 20,
   inventory: emptyInventory(),
   popularity: 20,
@@ -143,7 +144,7 @@ export const fixtureReport: DayReport = {
 
 /** Crude stand-in for src/core so the UI runs end to end. */
 export const fixtureEngine: Engine = {
-  newGame: (seed) => ({ ...fixtureState, seed }),
+  newGame: (seed, seasonDays = 30) => ({ ...fixtureState, seed, seasonDays }),
   shopListing: () => Object.fromEntries(ITEMS.map((item) => [item, STUB_PACKS])) as Record<Item, Pack[]>,
   buy(state, item, packIdx) {
     const pack = STUB_PACKS[packIdx];
@@ -196,7 +197,7 @@ export const fixtureEngine: Engine = {
       inventoryAfter: inventory,
     };
     const day = state.day + 1;
-    const status = day > 30 ? 'finished' : 'playing';
+    const status = day > state.seasonDays ? 'finished' : 'playing';
     return {
       state: { ...state, day, cash, inventory, spentToday: 0, forecast: forecastFor(day), history: [...state.history, report], status },
       report,
@@ -207,7 +208,7 @@ export const fixtureEngine: Engine = {
   gameReducer(state, action) {
     switch (action.type) {
       case 'newGame':
-        return fixtureEngine.newGame(action.seed);
+        return fixtureEngine.newGame(action.seed, action.seasonDays);
       case 'buy': {
         const r = fixtureEngine.buy(state, action.item, action.packIdx);
         return r.ok ? r.state : state;

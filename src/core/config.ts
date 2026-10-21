@@ -5,7 +5,9 @@ import type { CustomerTypeId, ForecastConfidence, Item, NewsEvent, Sky } from '.
 
 // ---------- Season ----------
 
+/** Default summer length; the player can also pick any of SEASON_LENGTHS on the start screen. */
 export const SEASON_DAYS = 30;
+export const SEASON_LENGTHS = [7, 30] as const;
 export const START_CASH = 20;
 export const START_POPULARITY = 20;
 export const START_PRICE = 2;
