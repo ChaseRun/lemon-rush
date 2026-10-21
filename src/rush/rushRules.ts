@@ -11,9 +11,12 @@
 //   4. 5pm closing
 // A serve completing can sell the stand out (step 1), which ends the day on the spot.
 //
-// Stock flow: stock ──fill jug──► jug (reserved) ──pour──► held glass (reserved) ──serve──► used.
-// Only a completed serve uses stock. Lemonade still in the jug or in the kid's hand when the day ends
-// was only ever reserved, so it costs nothing.
+// Stock flow:
+//   lemons + sugar ──fill (used right away)──► jug ──pour (sets aside 1 cup + 1 ice)──► glass in hand
+//   ──serve (uses that cup + ice)──► sold
+// So used.lemons == used.sugar == glasses filled, used.cups == used.ice == glasses served.
+// Lemonade still in the jug or in the kid's hand when the day ends is poured out (DayOutcome.pouredOut):
+// its lemons + sugar stay used; the cup + ice of a glass in hand go back to stock.
 
 import type { Arrival, Bar, DayOutcome, DayPlan, Inventory, ServedRecord } from '../contract';
 import { ITEMS } from '../contract';
@@ -67,9 +70,9 @@ export interface RushState {
   clockMs: number;
   phase: RushPhase;
   kidX: number;
-  /** Glasses of lemonade in the jug, 0..RUSH.jugCapacity. Each reserves 1 of each item. Starts empty. */
+  /** Glasses of lemonade in the jug, 0..RUSH.jugCapacity. Their lemons + sugar are already used. Starts empty. */
   jug: number;
-  /** The kid can carry at most one glass. A held glass reserves 1 of each item until served. */
+  /** The kid can carry at most one glass. It sets aside 1 cup + 1 ice, used only when the serve completes. */
   holdingGlass: boolean;
   task: KidTask;
   /** One entry per spot in RUSH.spotX. */
@@ -83,7 +86,9 @@ export interface RushState {
   soldOutAtMs: number | null;
   /** Still waiting (or mid-serve) at 5pm, or never arrived before closing. They just leave: not walkouts. */
   leftAtClose: number;
-  /** Stock consumed so far (1 of each item per completed serve). */
+  /** Glasses' worth of lemonade thrown away at day end (jug + glass in hand). 0 while the day is open. */
+  pouredOut: number;
+  /** Stock consumed so far: lemons + sugar when the jug is filled, cups + ice when a serve completes. */
   used: Inventory;
   /** Emitted during the most recent step() only. */
   events: RushEvent[];
@@ -124,27 +129,52 @@ export function popupText(amount: number): string {
 
 // ---------- Selectors (also used by the renderer) ----------
 
-/** Opening stock minus what's been used. Includes lemonade in the jug and in the kid's hand (reserved, not used). */
+/**
+ * Opening stock minus what's been used. Lemons + sugar already in the jug are gone (used at fill time);
+ * the cup + ice of the glass in the kid's hand are still counted here (set aside, used at serve time).
+ */
 export function stockLeft(s: RushState): Inventory {
   const inv = { ...s.plan.inventory };
   for (const item of ITEMS) inv[item] -= s.used[item];
   return inv;
 }
 
-/** Glasses already promised: what's in the jug plus the glass the kid is holding. */
+/**
+ * Lemonade made but not yet served: the jug plus the glass in the kid's hand. Its lemons + sugar are
+ * already used; if the day ended now, this is how much would be poured out.
+ */
 export function reservedGlasses(s: RushState): number {
   return s.jug + (s.holdingGlass ? 1 : 0);
 }
 
-/** Glasses the stock can still make that aren't already in the jug or the kid's hand. */
-export function unreservedGlasses(s: RushState): number {
-  return glassesMakeable(stockLeft(s)) - reservedGlasses(s);
+/** Glasses of lemonade the remaining lemons + sugar can still make (what a fill can draw on). */
+export function fillableGlasses(s: RushState): number {
+  const left = stockLeft(s);
+  return Math.max(0, Math.min(left.lemons, left.sugar));
 }
 
-/** What holding Space at the prep station would do right now, or null if nothing. */
+/** Cup + ice sets not set aside for the glass in the kid's hand (what pours can draw on). */
+export function freeCupSets(s: RushState): number {
+  const left = stockLeft(s);
+  return Math.max(0, Math.min(left.cups, left.ice) - (s.holdingGlass ? 1 : 0));
+}
+
+/**
+ * Further glasses the remaining stock could still make and serve, on top of the lemonade already made
+ * (jug + hand): new lemonade needs lemons + sugar, and every glass, old or new, needs a free cup + ice.
+ */
+export function unreservedGlasses(s: RushState): number {
+  return Math.max(0, Math.min(fillableGlasses(s), freeCupSets(s) - s.jug));
+}
+
+/**
+ * What holding Space at the prep station would do right now, or null if nothing.
+ * Fill: the jug is empty and there are lemons + sugar (cups and ice don't matter).
+ * Pour: there's lemonade in the jug, the kid's hands are free, and there's a free cup + ice.
+ */
 export function stationTask(s: RushState): 'filling' | 'pouring' | null {
-  if (s.jug === 0) return unreservedGlasses(s) > 0 ? 'filling' : null;
-  return s.holdingGlass ? null : 'pouring';
+  if (s.jug === 0) return fillableGlasses(s) > 0 ? 'filling' : null;
+  return !s.holdingGlass && freeCupSets(s) > 0 ? 'pouring' : null;
 }
 
 /** Price + tips earned so far. */
@@ -198,6 +228,7 @@ export function createRush(plan: DayPlan): RushState {
     soldOutMisses: 0,
     soldOutAtMs: null,
     leftAtClose: 0,
+    pouredOut: 0,
     used: { lemons: 0, sugar: 0, ice: 0, cups: 0 },
     events: [],
   };
@@ -239,7 +270,7 @@ export function toOutcome(s: RushState): DayOutcome {
     soldOutMisses: s.soldOutMisses,
     soldOutAtMs: s.soldOutAtMs,
     leftAtClose: s.leftAtClose,
-    pouredOut: 0, // TODO(jug rule): lemonade left in the jug/hand at day end
+    pouredOut: s.pouredOut,
     used: { ...s.used },
   };
 }
@@ -308,13 +339,15 @@ function actKid(s: RushState, t0: number, dt: number, input: RushInput, pressed:
   else finishServe(s, task.spot, doneAtMs);
 }
 
-/** The jug takes as many glasses as it holds, or as the unreserved stock can make, whichever is fewer. */
+/** The jug takes min(capacity, lemons left, sugar left) glasses. Those lemons + sugar are used right away. */
 function finishFill(s: RushState, atMs: number): void {
-  s.jug = Math.min(RUSH.jugCapacity, unreservedGlasses(s)); // reserved, not used
+  s.jug = Math.min(RUSH.jugCapacity, fillableGlasses(s));
+  s.used.lemons += s.jug;
+  s.used.sugar += s.jug;
   s.events.push({ kind: 'jugFilled', atMs, glasses: s.jug });
 }
 
-/** One glass moves from the jug to the kid's hand. It stays reserved until served. */
+/** One glass moves from the jug to the kid's hand, setting aside 1 cup + 1 ice until it's served. */
 function finishPour(s: RushState, atMs: number): void {
   s.jug -= 1;
   s.holdingGlass = true;
@@ -333,7 +366,8 @@ function finishServe(s: RushState, spot: number, atMs: number): void {
   const paid = s.plan.price;
   const tip = tipFor(paid, c.arrival.tipRate, bar);
   s.served.push({ arrivalId: c.arrival.id, type: c.arrival.type, paid, tip, bar, atMs });
-  for (const item of ITEMS) s.used[item] += 1;
+  s.used.cups += 1; // the lemons + sugar were used when the jug was filled
+  s.used.ice += 1;
   s.spots[spot] = null;
   s.holdingGlass = false;
   s.task = IDLE;
@@ -348,7 +382,7 @@ function drainPatience(s: RushState, t0: number, dt: number): void {
     const before = c.patienceLeftMs;
     c.patienceLeftMs = Math.max(0, before - dt);
     if (c.patienceLeftMs <= 0) {
-      // Walked out: no payment, no stock used (a glass the kid is holding stays reserved for someone else).
+      // Walked out: no payment, no stock used (a glass the kid is holding stays in hand for someone else).
       s.spots[i] = null;
       s.walkouts += 1;
       s.events.push({ kind: 'walkout', atMs: t0 + Math.min(before, dt), spot: i });
@@ -370,21 +404,35 @@ function admitArrivals(s: RushState, now: number): void {
   }
 }
 
-/** Remove everyone waiting plus everyone yet to arrive; returns how many that was. */
+/**
+ * Day end: remove everyone waiting plus everyone yet to arrive (returns how many that was), and pour out
+ * the lemonade in the jug and in hand. Its lemons + sugar stay used; the held glass's cup + ice go back.
+ */
 function emptyStand(s: RushState): number {
   const count = s.spots.filter((c) => c !== null).length + (s.queue.length - s.nextArrival);
   s.spots = s.spots.map(() => null);
   s.nextArrival = s.queue.length;
   s.task = IDLE;
+  s.pouredOut += reservedGlasses(s);
+  s.jug = 0;
+  s.holdingGlass = false;
   return count;
 }
 
+/** The kid can't get another glass to a customer: none in hand, and no way to pour one. */
+function cannotProduceGlass(s: RushState): boolean {
+  if (s.holdingGlass) return false;
+  const jugStuckEmpty = s.jug === 0 && fillableGlasses(s) === 0;
+  return jugStuckEmpty || freeCupSets(s) === 0;
+}
+
 /**
- * Sold out = the unreserved stock can't make a glass, the jug is empty and the kid isn't holding one.
- * Ends the day. Only a completed serve can make this newly true, so it's checked there (and at opening).
+ * Sold out = not holding a glass, and either the jug is empty with no lemons or sugar to refill it, or
+ * there's no free cup + ice to pour into. Ends the day; any lemonade left in the jug is poured out.
+ * Only a completed serve can make this newly true, so it's checked there (and at opening).
  */
 function checkSoldOut(s: RushState, atMs: number): void {
-  if (s.phase !== 'open' || s.holdingGlass || s.jug > 0 || unreservedGlasses(s) > 0) return;
+  if (s.phase !== 'open' || !cannotProduceGlass(s)) return;
   s.phase = 'soldOut';
   s.clockMs = atMs;
   s.soldOutAtMs = atMs;
@@ -394,7 +442,7 @@ function checkSoldOut(s: RushState, atMs: number): void {
 
 /**
  * 5pm: everyone still waiting just leaves. A serve still in progress is abandoned. Lemonade left in the
- * jug or the kid's hand was only reserved, so it uses no stock.
+ * jug or the kid's hand is poured out.
  */
 function close(s: RushState, atMs: number): void {
   s.phase = 'closed';
