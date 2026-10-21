@@ -185,6 +185,7 @@ describe('createRush', () => {
       soldOutMisses: 5,
       soldOutAtMs: 0,
       leftAtClose: 0,
+      pouredOut: 0,
       used: stock(0),
     });
   });
@@ -529,6 +530,7 @@ describe('closing time', () => {
       soldOutMisses: 0,
       soldOutAtMs: null,
       leftAtClose: 2,
+      pouredOut: 0,
       used: stock(0),
     });
   });

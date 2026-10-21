@@ -239,6 +239,7 @@ export function toOutcome(s: RushState): DayOutcome {
     soldOutMisses: s.soldOutMisses,
     soldOutAtMs: s.soldOutAtMs,
     leftAtClose: s.leftAtClose,
+    pouredOut: 0, // TODO(jug rule): lemonade left in the jug/hand at day end
     used: { ...s.used },
   };
 }

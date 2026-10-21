@@ -60,6 +60,7 @@ export function autoServe(plan: DayPlan): DayOutcome {
     soldOutMisses: plan.arrivals.length - served.length,
     soldOutAtMs: !ranOut ? null : capacity === 0 ? 0 : served[served.length - 1].atMs,
     leftAtClose: 0,
+    pouredOut: 0,
     used: glassesWorth(served.length),
   };
 }
@@ -115,6 +116,7 @@ export function endDay(state: GameState, plan: DayPlan, outcome: DayOutcome): { 
     soldOutMisses: outcome.soldOutMisses,
     soldOutAtMs: outcome.soldOutAtMs,
     leftAtClose: outcome.leftAtClose,
+    pouredOut: outcome.pouredOut,
     revenue,
     tips,
     spent,

@@ -19,6 +19,7 @@ function outcome(overrides: Partial<DayOutcome> = {}): DayOutcome {
     soldOutMisses: 0,
     soldOutAtMs: null,
     leftAtClose: 0,
+    pouredOut: 0,
     used: stock(s.length),
     ...overrides,
   };

@@ -149,7 +149,12 @@ export interface DayOutcome {
   soldOutAtMs: number | null;
   /** Still waiting when the stand closed at 5pm. Not walkouts; excluded from the service rating. */
   leftAtClose: number;
-  /** Stock consumed (1 of each item per served glass). */
+  /** Glasses' worth of lemonade made but never served (left in the jug or in hand at day end) and poured out. */
+  pouredOut: number;
+  /**
+   * Stock consumed. Filling the jug uses lemons + sugar immediately (one of each per glass it holds);
+   * each served glass uses 1 ice + 1 cup when the serve completes.
+   */
   used: Inventory;
 }
 
@@ -173,6 +178,8 @@ export interface DayReport {
   soldOutMisses: number;
   soldOutAtMs: number | null;
   leftAtClose: number;
+  /** Glasses' worth of lemonade poured out at the end of the day. */
+  pouredOut: number;
   revenue: number;
   tips: number;
   /** Shop spending this morning. */
