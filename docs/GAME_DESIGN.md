@@ -67,7 +67,8 @@ You can't buy what you can't afford. Price range: $0.50–$5.00.
 - **Layout:** 3 customer spots on the left and a prep station on the right. The kid moves left and right between them.
 - **Length:** 120 seconds of real time, running from 9am to 5pm.
 - **Controls:** ← / → (or A / D) to move. Space to act.
-- **Making a glass:** hold Space at the prep station for **1.0s**. This reserves 1 of each item. You can carry 1 glass.
+- **The jug:** lemonade comes from a **10-glass jug** that starts each day empty. Hold Space at the prep station for **2.0s** to fill it (up to 10 glasses, or fewer if your supplies run short). Filling *reserves* supplies; it doesn't use them.
+- **Pouring a glass:** with lemonade in the jug, hold Space at the station for **0.3s** to pour a glass. You can carry 1 glass. When the jug is empty, go back and refill it.
 - **Serving:** at a waiting customer while holding a glass, press Space. Serving takes **0.8s** and you can't do anything else during it.
 - **When a serve finishes:**
   - 1 of each item is taken from stock.
@@ -78,7 +79,7 @@ You can't buy what you can't afford. Price range: $0.50–$5.00.
   - At 0, the customer **walks out**. They pay nothing and no stock is used.
 - **Tip** = price × the type's tip rate × 1 on green, 0.5 on yellow, 0 on red.
 - **Full counter:** an arrival who finds all spots taken is a **no-room** miss.
-- **Sold out:** when your stock can't make another glass and you aren't holding one, the day ends early. Everyone still waiting or yet to arrive becomes a **sold-out miss**.
+- **Sold out:** when your free stock can't make another glass, the jug is empty, and you aren't holding one, the day ends early. Everyone still waiting or yet to arrive becomes a **sold-out miss**.
 - **5pm:** customers still waiting leave. They aren't counted as walkouts.
 - **Auto-serve:** every arrival is served on green, in order, until stock runs out. The rest become sold-out misses.
 
