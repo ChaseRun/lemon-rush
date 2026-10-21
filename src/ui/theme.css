@@ -874,3 +874,19 @@
 .mk-link[aria-pressed='true'] {
   background: var(--lemon);
 }
+.mk-holiday-note {
+  font-family: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  margin-left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.mk-holiday-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--melon);
+}

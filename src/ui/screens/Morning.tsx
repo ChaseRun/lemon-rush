@@ -30,6 +30,12 @@ export function TopBar({ game }: { game: GameState }) {
         <div className="mk-summer">
           <span className="mk-summer-label">
             Day {day} of {SEASON_DAYS}
+            {game.day < JULY_4TH_DAY && (
+              <small className="mk-holiday-note">
+                🎆 <span className="mk-holiday-dot" aria-hidden /> Day {JULY_4TH_DAY} is the 4th of July: twice the customers
+              </small>
+            )}
+            {game.day === JULY_4TH_DAY && <small className="mk-holiday-note">🎆 Today is the 4th of July!</small>}
           </span>
           <div className="mk-days" aria-hidden>
             {Array.from({ length: SEASON_DAYS }, (_, i) => {
