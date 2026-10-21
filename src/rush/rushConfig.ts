@@ -7,13 +7,13 @@ import type { Bar } from '../contract';
 export const RUSH = {
   // ---- Layout (world units = canvas pixels, 0..900) ----
   /** Customer spots on the left. Index 0 is closest to the prep station and is filled first. */
-  spotX: [420, 280, 140] as readonly number[],
+  spotX: [540, 430, 320] as readonly number[], // moved closer to the stand after play-testing
   /** The prep station on the right. */
   prepX: 780,
   /** The kid starts behind the prep station. */
   kidStartX: 780,
   /** The kid can walk between the far spot and the prep station. */
-  kidMinX: 140,
+  kidMinX: 320,
   kidMaxX: 780,
   /** How close (px) the kid must be to a spot or the prep station to act there. */
   reachPx: 40,
