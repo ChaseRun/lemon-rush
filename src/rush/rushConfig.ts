@@ -2,7 +2,7 @@
 // Rules read RUSH; the canvas reads RUSH_VIEW. Per-customer numbers (patienceMs, tipRate) arrive on
 // each Arrival, so nothing here duplicates src/core/config.ts and the Rush never imports the engine.
 
-import type { Bar, CustomerTypeId } from '../contract';
+import type { Bar } from '../contract';
 
 export const RUSH = {
   // ---- Layout (world units = canvas pixels, 0..900) ----
@@ -42,8 +42,11 @@ export const RUSH = {
 };
 
 export const RUSH_VIEW = {
+  /** CSS size of the canvas at 100% (it shrinks to fit narrower screens). World x maps 1:1 to CSS x. */
   width: 900,
-  height: 300,
+  height: 420,
+  /** The art is drawn at width/pixelScale × height/pixelScale "art pixels", then scaled up crisply. */
+  pixelScale: 3,
   /** The clock runs 9am → 5pm over the day's dayLengthMs. */
   openHour: 9,
   closeHour: 17,
@@ -53,8 +56,9 @@ export const RUSH_VIEW = {
   popupMs: 1000,
   /** How long the SOLD OUT / CLOSED banner shows before onFinish fires. */
   endBannerMs: 1800,
-  /** The jug is drawn just right of the prep station. */
+  /** The jug is drawn just right of the prep station (world x). */
   jugX: 862,
-  emoji: { kid: '🧒', jogger: '🏃', grandma: '👵', worker: '👷' } as Readonly<Record<CustomerTypeId, string>>,
-  barColor: { green: '#3cb043', yellow: '#f2c200', red: '#e03c31' } as Readonly<Record<Bar, string>>,
+  /** Canvas text. Falls back to a system monospace until the pixel font has loaded. */
+  font: '"Press Start 2P", ui-monospace, Menlo, Consolas, monospace',
+  barColor: { green: '#2f9e44', yellow: '#f2b705', red: '#e8445f' } as Readonly<Record<Bar, string>>,
 };

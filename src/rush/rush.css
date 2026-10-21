@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* The Rush canvas: art is drawn at 300×140 "art pixels" and scaled up, so keep scaling nearest-neighbor. */
+.rush {
+  width: 100%;
+  max-width: 900px;
+}
+
+.rush-frame {
+  border: 3px solid #1b2b48;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1b2b48;
+  line-height: 0;
+}
+
+.rush-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+}
+
+.rush-help {
+  margin: 8px 0 0;
+  font-family: 'Press Start 2P', ui-monospace, Menlo, Consolas, monospace;
+  font-size: 9px;
+  line-height: 1.9;
+  color: #1b2b48;
+}
