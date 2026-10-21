@@ -313,8 +313,8 @@ describe('createRush', () => {
 describe('moving', () => {
   it('walks at kidSpeedPxPerMs and stays between the far spot and the prep station', () => {
     let s = createRush(makePlan([]));
-    s = hold(s, 1_000, { left: true });
-    expect(s.kidX).toBe(RUSH.kidStartX - RUSH.kidSpeedPxPerMs * 1_000);
+    s = hold(s, 200, { left: true }); // short enough not to reach the left edge
+    expect(s.kidX).toBe(RUSH.kidStartX - RUSH.kidSpeedPxPerMs * 200);
     s = hold(s, 5_000, { left: true });
     expect(s.kidX).toBe(RUSH.kidMinX);
     s = hold(s, 5_000, { right: true });
@@ -885,6 +885,8 @@ describe('determinism and invariants', () => {
       { type: 'jogger', patienceMs: 3_000, tipRate: 0.1 }, // impatient: makes sure walkouts happen
       { type: 'grandma', patienceMs: 25_000, tipRate: 0.3 },
       { type: 'worker', patienceMs: 15_000, tipRate: 0.15 },
+      // Very impatient customers keep walkouts in the mix however fast the layout lets the kid serve.
+      { type: 'jogger', patienceMs: 3_000, tipRate: 0.1 },
     ];
     const seen = {
       served: 0,
