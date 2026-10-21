@@ -212,6 +212,7 @@ export function toOutcome(s: RushState): DayOutcome {
     noRoom: s.noRoom,
     soldOutMisses: s.soldOutMisses,
     soldOutAtMs: s.soldOutAtMs,
+    leftAtClose: s.leftAtClose,
     used: { ...s.used },
   };
 }

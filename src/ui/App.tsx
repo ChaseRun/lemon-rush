@@ -248,6 +248,7 @@ function Report({ report: r, dayLengthMs, onNext }: { report: DayReport; dayLeng
     ],
     ['😠 Walked out (waited too long)', r.walkouts],
     ['🚪 No room at the counter', r.noRoom],
+    ['🕔 Still waiting at 5pm (not counted against you)', r.leftAtClose],
     [
       '🚫 Sold out',
       r.soldOutAtMs === null ? 'no' : `at ${clock(r.soldOutAtMs, dayLengthMs)} — ${r.soldOutMisses} customers missed`,

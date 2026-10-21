@@ -147,6 +147,8 @@ export interface DayOutcome {
   /** Waiting or yet to arrive when the stand sold out. */
   soldOutMisses: number;
   soldOutAtMs: number | null;
+  /** Still waiting when the stand closed at 5pm. Not walkouts; excluded from the service rating. */
+  leftAtClose: number;
   /** Stock consumed (1 of each item per served glass). */
   used: Inventory;
 }
@@ -170,6 +172,7 @@ export interface DayReport {
   noRoom: number;
   soldOutMisses: number;
   soldOutAtMs: number | null;
+  leftAtClose: number;
   revenue: number;
   tips: number;
   /** Shop spending this morning. */

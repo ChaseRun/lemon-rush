@@ -104,6 +104,7 @@ function autoServe(plan: DayPlan): DayOutcome {
     noRoom: 0,
     soldOutMisses: plan.arrivals.length - n,
     soldOutAtMs: soldOut && n > 0 ? servedArrivals[n - 1].atMs : soldOut ? 0 : null,
+    leftAtClose: 0,
     used: { lemons: n, sugar: n, ice: n, cups: n },
   };
 }
@@ -125,6 +126,7 @@ export const fixtureReport: DayReport = {
   noRoom: 1,
   soldOutMisses: 1,
   soldOutAtMs: 100_000,
+  leftAtClose: 0,
   revenue: 40,
   tips: 3.5,
   spent: 13.25,
@@ -181,6 +183,7 @@ export const fixtureEngine: Engine = {
       noRoom: outcome.noRoom,
       soldOutMisses: outcome.soldOutMisses,
       soldOutAtMs: outcome.soldOutAtMs,
+      leftAtClose: outcome.leftAtClose,
       revenue,
       tips,
       spent: state.spentToday,
