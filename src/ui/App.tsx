@@ -25,7 +25,7 @@ const TYPE_LABEL: Record<CustomerTypeId, string> = {
   worker: '👷 Workers',
 };
 
-const money = (n: number) => `$${n.toFixed(2)}`;
+const money = (n: number) => (n < 0 ? `-$${(-n).toFixed(2)}` : `$${n.toFixed(2)}`);
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 /** 0ms = 9:00am, dayLengthMs = 5:00pm. */
